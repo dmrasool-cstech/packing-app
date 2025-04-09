@@ -29,19 +29,26 @@ import { useAuth } from "@/app/context/adminContext";
 import { useRouter } from "next/navigation";
 
 export function TopNavigation() {
-  const { logout } = useAuth();
+  const { userInfo, logout } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const handleLogout = () => {
     logout();
     if (setIsOpen) setIsOpen(false);
-    router.push("/login");
+    // router.push("/login");
   };
 
   return (
     <header className="bg-[#D84315] text-white">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/admin-dashboard" className="flex items-center">
+        <Link
+          href={
+            userInfo?.role === "branch_manager"
+              ? "/manager-dashboard"
+              : "/admin-dashboard"
+          }
+          className="flex items-center"
+        >
           <img
             src="/images/meena-bazaar-logo.png"
             alt="Meena Bazaar"
@@ -51,7 +58,14 @@ export function TopNavigation() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-6">
-          <Link href="/admin-dashboard" className="flex items-center gap-1.5">
+          <Link
+            href={
+              userInfo?.role === "branch_manager"
+                ? "/manager-dashboard"
+                : "/admin-dashboard"
+            }
+            className="flex items-center gap-1.5"
+          >
             <LayoutDashboard className="h-5 w-5" />
             <span>Dashboard</span>
           </Link>
@@ -62,12 +76,16 @@ export function TopNavigation() {
               <ChevronDown className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white">
-              <DropdownMenuItem asChild>
-                <Link href="/branches" className="flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  <span>Branches</span>
-                </Link>
-              </DropdownMenuItem>
+              {userInfo?.role === "branch_manager" ? (
+                ""
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link href="/branches" className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    <span>Branches</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link href="/users" className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
@@ -88,7 +106,7 @@ export function TopNavigation() {
             onClick={() => {
               // e.preventDefault();
               logout();
-              router.push("/login");
+              // router.push("/login");
             }}
           >
             <LogOut className="h-6 w-6" />
@@ -114,7 +132,11 @@ export function TopNavigation() {
               </SheetHeader>
               <div className="flex flex-col py-4">
                 <Link
-                  href="/admin-dashboard"
+                  href={
+                    userInfo?.role === "branch_manager"
+                      ? "/manager-dashboard"
+                      : "/admin-dashboard"
+                  }
                   className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100"
                   onClick={() => setIsOpen(false)}
                 >
@@ -127,14 +149,18 @@ export function TopNavigation() {
                     <span>Masters</span>
                   </div>
                   <div className="pl-7 flex flex-col space-y-2">
-                    <Link
-                      href="/branches"
-                      className="flex items-center gap-2 py-2 text-gray-700 hover:text-[#D84315]"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Building className="h-4 w-4" />
-                      <span>Branches</span>
-                    </Link>
+                    {userInfo?.role === "branch_manager" ? (
+                      ""
+                    ) : (
+                      <Link
+                        href="/branches"
+                        className="flex items-center gap-2 py-2 text-gray-700 hover:text-[#D84315]"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Building className="h-4 w-4" />
+                        <span>Branches</span>
+                      </Link>
+                    )}
                     <Link
                       href="/users"
                       className="flex items-center gap-2 py-2 text-gray-700 hover:text-[#D84315]"
@@ -142,6 +168,14 @@ export function TopNavigation() {
                     >
                       <Users className="h-4 w-4" />
                       <span>Users</span>
+                    </Link>
+                    <Link
+                      href="/orders"
+                      className="flex items-center gap-2 py-2 text-gray-700 hover:text-[#D84315]"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Package className="h-4 w-4" />
+                      <span>Oders</span>
                     </Link>
                   </div>
                 </div>

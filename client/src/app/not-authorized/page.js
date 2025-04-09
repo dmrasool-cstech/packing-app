@@ -14,7 +14,7 @@ export default function NotAuthorized() {
       </p>
       <Button
         onClick={() => router.push("/login")}
-        className="custom-bg-primary px-4 py-2 mt-4"
+        className="bg-custom-primary text-white px-4 py-2 mt-4"
       >
         Go Home
       </Button>

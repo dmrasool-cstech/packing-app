@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
-  TrendingUp,
+  // TrendingUp,
   // Bell,
   User,
   Home,
@@ -21,7 +21,7 @@ import AdminProtectedRoute from "../components/adminProtectedRoute";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { userInfo, logout } = useAuth();
   const [todaysOrders, setTodaysOrders] = useState([]); // Stores today's orders
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -36,7 +36,13 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchTodaysOrders() {
       try {
-        const res = await API.get("/orders/today");
+        const res = await API.get("/orders/today", {
+          params: {
+            role: userInfo.role,
+            id: userInfo.id,
+          },
+        });
+        // console.log(res.data);
         setTodaysOrders(res.data);
         // console.log(res.data);
       } catch (error) {
@@ -88,7 +94,7 @@ export default function DashboardPage() {
                       logout();
                       router.push("/login");
                     }}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
@@ -115,17 +121,17 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <p className="text-gray-500 text-sm">Total Orders</p>
-                <p className="text-xl font-bold">{todaysOrders.length}</p>
+                <p className="text-gray-500 text-sm">Today Total Delivers</p>
+                <p className="text-xl font-bold">{todaysOrders || 0}</p>
               </div>
               {/* <div className="flex-1">
                 <p className="text-gray-500 text-sm">Earnings</p>
                 <p className="text-xl font-bold">₹120</p>
               </div> */}
-              <div className="flex-1">
+              {/* <div className="flex-1">
                 <p className="text-gray-500 text-sm">Rating</p>
                 <p className="text-xl font-bold">4.8</p>
-              </div>
+              </div> */}
             </div>
           </div>
 

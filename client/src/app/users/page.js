@@ -24,6 +24,7 @@ import API from "../utils/api";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
+import { useAuth } from "../context/adminContext";
 
 const formatDate = (dateString) => {
   const date = new Date(dateString)
@@ -59,6 +60,7 @@ const formatDate = (dateString) => {
 // ];
 
 export default function UsersPage() {
+  const { userInfo } = useAuth();
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,12 @@ export default function UsersPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await API.get("/auth/users");
+        const res = await API.get("/auth/users", {
+          params: {
+            role: userInfo.role,
+            id: userInfo.id,
+          },
+        });
         setUsers(res.data);
       } catch (error) {
         console.log(error);
@@ -113,14 +120,18 @@ export default function UsersPage() {
         <main className="flex-1 container mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Manage Users</h1>
-            <Button
-              className="bg-[#D84315] hover:bg-[#BF360C] text-white"
-              asChild
-            >
-              <Link href="/users/add">
-                <Plus className="mr-2 h-4 w-4" /> Add New User
-              </Link>
-            </Button>
+            {userInfo?.role === "branch_manager" ? (
+              ""
+            ) : (
+              <Button
+                className="bg-[#D84315] hover:bg-[#BF360C] text-white"
+                asChild
+              >
+                <Link href="/users/add">
+                  <Plus className="mr-2 h-4 w-4" /> Add New User
+                </Link>
+              </Button>
+            )}
           </div>
 
           <Card>
@@ -150,7 +161,11 @@ export default function UsersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>User Type</TableHead>
                     <TableHead>Creation Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {userInfo?.role === "branch_manager" ? (
+                      ""
+                    ) : (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -179,23 +194,27 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell>{user.role}</TableCell>
                         <TableCell>{formatDate(user.createdAt)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Link href={`/users/edit/${user._id}`}>
-                                <Edit className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              className="cursor-pointer"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteUser(user._id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {userInfo?.role === "branch_manager" ? (
+                          ""
+                        ) : (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon">
+                                <Link href={`/users/edit/${user._id}`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button
+                                className="cursor-pointer"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteUser(user._id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   ) : (

@@ -9,10 +9,12 @@ import Branch from "../models/Branch.js";
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  service: "Gmail",
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT),
+  secure: process.env.SMTP_SECURE === "true",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -28,16 +30,39 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     const resetURL = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+
     const mailOptions = {
       to: user.email,
-      from: process.env.EMAIL_USER,
-      subject: "Password Reset",
-      text: `Click the link to reset your password: ${resetURL}`,
+      from: process.env.SMTP_USER,
+      subject: "Reset Your Meenabazaar Password",
+      html: `
+        <div style="background-color: #f9f9f9; padding: 30px; font-family: Arial, sans-serif; color: #333;">
+          <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden;">
+            <div style="background-color: #D84315; padding: 20px; text-align: center;">
+              <h1 style="color: #fff; margin: 0;">Meenabazaar</h1>
+            </div>
+            <div style="padding: 30px;">
+              <h2>Hello ${user.name || "User"},</h2>
+              <p>You recently requested to reset your password for your Meenabazaar account.</p>
+              <p>Click the button below to reset it:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetURL}" style="background-color: #D84315; color: #fff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 16px;">Reset Password</a>
+              </div>
+              <p>If you did not request a password reset, you can safely ignore this email. This link will expire in 1 hour.</p>
+              <p>Thank you,<br/>The Meenabazaar Team</p>
+            </div>
+          </div>
+        </div>
+      `,
+      text: `Reset your Meenabazaar password: ${resetURL}`,
     };
+
     const info = await transporter.sendMail(mailOptions);
     res.json({ message: "Password reset link sent to email" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending email" });
+    res
+      .status(500)
+      .json({ message: "Error sending email", error: error.message });
   }
 };
 
@@ -120,9 +145,38 @@ export const resetPassword = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
-    res.json(users);
+    const { role, id: userId } = req.query;
+
+    if (!role || !userId) {
+      return res.status(400).json({ message: "Role or user ID missing" });
+    }
+
+    // Admin can view all users
+    if (role === "admin") {
+      const users = await User.find().select("-password");
+      return res.status(200).json(users);
+    }
+
+    // Branch Manager can view only users from their branch (excluding themselves)
+    if (role === "branch_manager") {
+      const manager = await User.findById(userId).populate("branch");
+
+      if (!manager || !manager.branch) {
+        return res.status(403).json({ message: "Branch not assigned" });
+      }
+
+      const branchUsers = await User.find({
+        branch: manager.branch._id,
+        _id: { $ne: userId }, // exclude the branch manager themself
+      }).select("-password");
+
+      return res.status(200).json(branchUsers);
+    }
+
+    // Other roles not allowed
+    return res.status(403).json({ message: "Access denied" });
   } catch (error) {
+    console.error("Error fetching users:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -132,19 +186,60 @@ export const addUser = async (req, res) => {
     const { name, email, mobile, branchId, status, userType, password } =
       req.body;
 
-    if (!name || !email || !mobile || !userType) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Validation errors
+    const errors = {};
+
+    if (!name) errors.name = "Name is required";
+    if (!email) errors.email = "Email is required";
+    if (!mobile) errors.mobile = "Mobile number is required";
+    if (!userType) errors.userType = "User type is required";
+    if (!password) errors.password = "Password is required";
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Check for duplicate name or email
+    const duplicateName = await User.findOne({ name });
+    if (duplicateName) {
+      return res
+        .status(400)
+        .json({ errors: { name: "Username already exists" } });
+    }
+
+    const duplicateMobileNum = await User.findOne({ mobile });
+    if (duplicateMobileNum) {
+      return res
+        .status(400)
+        .json({ errors: { mobile: "Mobile Number already exists" } });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res
+        .status(400)
+        .json({ errors: { email: "Email already registered" } });
+    }
+
+    if (userType === "admin") {
+      const existingAdmin = await User.findOne({ role: "admin" });
+      if (existingAdmin) {
+        return res.status(400).json({
+          errors: {
+            userType:
+              "An admin user already exists. Only one admin is allowed.",
+          },
+        });
+      }
     }
 
     let branchName = "";
     if (branchId) {
       const branch = await Branch.findById(branchId);
-      if (!branch) return res.status(404).json({ message: "Branch not found" });
+      if (!branch)
+        return res
+          .status(404)
+          .json({ errors: { branchId: "Branch not found" } });
       branchName = branch.name;
     }
 
@@ -164,20 +259,13 @@ export const addUser = async (req, res) => {
     await newUser.save();
 
     // 🔁 Sync with Branch model
-    // if (branchId) {
-    //   const branch = await Branch.findById(branchId);
-    //   if (userType === "branch_manager") {
-    //     branch.manager = newUser._id;
-    //   } else if (userType === "packing_agent") {
-    //     if (!branch.packingAgents.includes(newUser._id)) {
-    //       branch.packingAgents.push(newUser._id);
-    //     }
-    //   }
-    //   await branch.save();
-    // }
+
     if (branchId) {
       const branch = await Branch.findById(branchId);
-      if (!branch) return res.status(404).json({ message: "Branch not found" });
+      if (!branch)
+        return res
+          .status(404)
+          .json({ errors: { branchId: "Branch not found" } });
 
       // Prevent duplicate assignment
       if (userType === "branch_manager") {
@@ -187,7 +275,7 @@ export const addUser = async (req, res) => {
         ) {
           return res
             .status(400)
-            .json({ message: "Branch already has a manager assigned" });
+            .json({ errors: { userType: "Branch already has a manager" } });
         }
         branch.manager = newUser._id;
       } else if (userType === "packing_agent") {
@@ -195,9 +283,11 @@ export const addUser = async (req, res) => {
           (agentId) => agentId.toString() === newUser._id.toString()
         );
         if (isAlreadyAssigned) {
-          return res
-            .status(400)
-            .json({ message: "Packing agent already assigned to this branch" });
+          return res.status(400).json({
+            errors: {
+              userType: "Packing agent already assigned to this branch",
+            },
+          });
         }
         branch.packingAgents.push(newUser._id);
       }
@@ -219,12 +309,42 @@ export const updateUser = async (req, res) => {
       req.body;
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user)
+      return res.status(404).json({ errors: { user: "User not found!" } });
+
+    const errors = {};
+
+    if (!name) errors.name = "Name is required";
+    if (!email) errors.email = "Email is required";
+    if (!mobile) errors.mobile = "Mobile number is required";
+    if (!userType) errors.userType = "User type is required";
+    // if (!password) errors.password = "Password is required";
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // // Check for duplicate name or email
+    // const duplicateName = await User.findOne({ name });
+    // if (duplicateName) {
+    //   return res
+    //     .status(400)
+    //     .json({ errors: { name: "Username already exists" } });
+    // }
+
+    // const existingUser = await User.findOne({ email });
+    // if (existingUser) {
+    //   return res
+    //     .status(400)
+    //     .json({ errors: { email: "Email already registered" } });
+    // }
 
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser)
-        return res.status(400).json({ message: "Email already in use" });
+        return res
+          .status(400)
+          .json({ errors: { email: "Email already registered" } });
     }
 
     let branchName = user.branchName;
@@ -253,7 +373,7 @@ export const updateUser = async (req, res) => {
     if (branchId) {
       const newBranch = await Branch.findById(branchId);
       if (!newBranch)
-        return res.status(404).json({ message: "Branch not found" });
+        return res.status(404).json({ errors: { branch: "Branch not found" } });
       branchName = newBranch.name;
 
       // Prevent duplicate assignment
@@ -262,9 +382,9 @@ export const updateUser = async (req, res) => {
           newBranch.manager &&
           newBranch.manager.toString() !== user._id.toString()
         ) {
-          return res
-            .status(400)
-            .json({ message: "Branch already has a manager assigned" });
+          return res.status(400).json({
+            errors: { branch: "Branch already has a manager assigned" },
+          });
         }
         newBranch.manager = user._id;
       } else if (userType === "packing_agent") {
@@ -293,7 +413,7 @@ export const updateUser = async (req, res) => {
     res.json({ message: "User updated successfully", user });
   } catch (error) {
     console.error("Error in updateUser:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -326,14 +446,53 @@ export const deleteUser = async (req, res) => {
 
 export const activeUserCount = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ status: "active" });
-    const percentageActive =
-      totalUsers === 0
-        ? "0%"
-        : ((activeUsers / totalUsers) * 100).toFixed(2) + "%";
-    res.json({ activeUsers, percentageActive });
+    const { role, id: userId } = req.query;
+
+    if (!role || !userId) {
+      return res.status(400).json({ message: "Role or user ID missing" });
+    }
+
+    // For Admin: Count all users
+    if (role === "admin") {
+      const totalUsers = await User.countDocuments();
+      const activeUsers = await User.countDocuments({ status: "active" });
+
+      const percentageActive =
+        totalUsers === 0
+          ? "0%"
+          : ((activeUsers / totalUsers) * 100).toFixed(2) + "%";
+
+      return res.json({ activeUsers, percentageActive });
+    }
+
+    // For Branch Manager: Count only users from their branch
+    if (role === "branch_manager") {
+      const manager = await User.findById(userId).populate("branch");
+
+      if (!manager || !manager.branch) {
+        return res.status(403).json({ message: "Branch not assigned" });
+      }
+
+      const branchId = manager.branch._id;
+
+      const totalUsers = await User.countDocuments({ branch: branchId });
+      const activeUsers = await User.countDocuments({
+        branch: branchId,
+        status: "active",
+      });
+
+      const percentageActive =
+        totalUsers === 0
+          ? "0%"
+          : ((activeUsers / totalUsers) * 100).toFixed(2) + "%";
+
+      return res.json({ activeUsers, percentageActive });
+    }
+
+    // Other roles: Access Denied
+    return res.status(403).json({ message: "Access denied" });
   } catch (error) {
+    console.error("Error in activeUserCount:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };

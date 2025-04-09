@@ -18,12 +18,14 @@ import { Button } from "../components/ui/button";
 import { useEffect, useState } from "react";
 import API from "../utils/api";
 // import ProtectedRoute from "../components/ProtectedRoute";
-import Error from "../components/Error";
+// import Error from "../components/Error";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
+import { useAuth } from "../context/adminContext";
+// import { toast } from "sonner";
 
 export default function OrderDetailsPage() {
   const router = useRouter();
-  // const { orderId } = router.query;
+  const { userInfo } = useAuth();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
   // const orderId = searchParams.id;
@@ -32,25 +34,6 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(!!orderId);
   const [error, setError] = useState("");
 
-  // if (!orderId) {
-  //   return <p>Order ID not found. Please provide a valid Order ID.</p>;
-  // }
-  // useEffect(() => {
-  //   if (!orderId) return;
-
-  //   async function fetchOrderDetails() {
-  //     try {
-  //       const res = await API.get(`/orders/${orderId}`);
-  //       setOrder(res.data);
-  //     } catch (err) {
-  //       setError("Order not found or invalid Order ID");
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   }
-
-  //   fetchOrderDetails();
-  // }, [orderId]);
   useEffect(() => {
     if (!orderId) {
       setLoading(false);
@@ -61,12 +44,20 @@ export default function OrderDetailsPage() {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const res = await API.get(`/orders/${orderId}`);
+        const res = await API.get(`/orders/${orderId}`, {
+          params: {
+            role: userInfo.role,
+            id: userInfo.id,
+          },
+        });
         console.log(res.data);
         setOrder(res.data);
       } catch (err) {
-        console.error(err);
-        setError("Order not found or invalid Order ID");
+        // if (err?.response?.data?.message) {
+        //   toast.error(err?.response?.data?.message);
+        // }
+        console.error(err || err?.response?.data?.message);
+        setError(err);
       } finally {
         setLoading(false);
       }
@@ -75,28 +66,45 @@ export default function OrderDetailsPage() {
     fetchOrderDetails();
   }, [orderId]);
 
-  if (loading) return <p>Loading...</p>;
-  if (!orderId)
-    return <p>Order ID not found. Please provide a valid Order ID.</p>;
-  if (error) return <Error />;
-
-  // if (loading) return <p>Loading...</p>;
-  // if (error) return <Error />;
-  // Mock order data
-  // const order = {
-  //   orderNo: "A12345678",
-  //   orderDate: "March 18, 2025",
-  //   orderAmount: "₹3,499",
-  //   orderStatus: "Ready for delivery",
-  //   paymentStatus: "Paid",
-  //   deliveryStatus: "Pending",
-  //   productName: "Maroon Velvet Embroidered Suit",
-  //   productPrice: "₹3,499",
-  // };
-
   const handleBack = () => {
     router.push("/dashboard");
   };
+
+  if (loading) return <p>Loading...</p>;
+
+  if (!orderId)
+    return (
+      <div className="p-4 flex flex-col items-center justify-center min-h-screen bg-gray-50 gap-2">
+        <h2 className="text-lg font-semibold">Order ID not found</h2>
+        <p>Please provide a valid Order ID.</p>
+        <Button
+          className="bg-custom-primary text-white px-3 py-1.5 "
+          onClick={handleBack}
+        >
+          Go Back
+        </Button>
+      </div>
+    );
+
+  if (error) {
+    const errorMsg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Something went wrong while fetching the order.";
+
+    return (
+      <div className="p-4 flex flex-col items-center justify-center min-h-screen bg-gray-50 gap-2">
+        <h2 className="text-lg font-semibold">Error</h2>
+        <p>{errorMsg}</p>
+        <Button
+          className="bg-custom-primary text-white px-3 py-1.5"
+          onClick={handleBack}
+        >
+          Go Back
+        </Button>
+      </div>
+    );
+  }
 
   const handleDeliver = () => {
     // Navigate to customer details page
@@ -152,7 +160,7 @@ export default function OrderDetailsPage() {
             </div>
             <div className="text-gray-700 mt-3">
               <span className="text-lg font-semibold">
-                ₹{order.price || order.orderItems?.split(" - ")[1]}
+                ₹{order.price || order.orderItems?.split("-")[1] || "N/A"}
               </span>
             </div>
           </div>
@@ -232,15 +240,20 @@ export default function OrderDetailsPage() {
                       </div>
                       <div>
                         <p className="font-medium">
-                          {order.packageDetails?.title || ""}
+                          {order.packageDetails?.title || "N/A"}
                         </p>
+                        {/* {order.orderItems.split("-")[1]} */}
                         <p className="text-custom-primary font-semibold text-sm">
-                          ₹{order.price || order.orderItems?.split(" - ")[1]}
+                          ₹
+                          {order.price ||
+                            order.orderItems?.split("-")[1] ||
+                            "N/A"}
                         </p>
                         <p className="text-gray-600 text-xs mt-1">
                           Qty:{" "}
                           {order.packageDetails?.quantity ||
-                            order.orderItems?.split(" - ")[0]}
+                            order.orderItems?.split("-")[0] ||
+                            "N/A"}
                         </p>
                       </div>
                     </div>

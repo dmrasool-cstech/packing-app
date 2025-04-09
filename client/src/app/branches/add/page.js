@@ -112,17 +112,32 @@ export default function AddBranchPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const pincodeRegex = /^[1-9][0-9]{5}$/;
+
+    if (!phoneRegex.test(formData.phone)) {
+      toast.error("Enter valid mobile number");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!pincodeRegex.test(formData.pincode)) {
+      toast.error("Enter valid pincode ");
+      setIsSubmitting(false);
+      return;
+    }
     try {
       await API.post("/branches", formData);
       router.push("/branches");
-    } catch (err) {
-      console.log(err);
-      const errorData = err?.response?.data;
+    } catch (error) {
+      console.log(error);
+      const errorRes = error.response?.data;
 
-      if (errorData?.errors) {
-        errorData.errors.forEach((msg) => toast.error(msg));
+      if (errorRes?.errors) {
+        Object.values(errorRes.errors).forEach((msg) => toast.error(msg));
       } else {
-        toast.error("Something went wrong");
+        toast.error(errorRes?.error || "Something went wrong");
       }
     } finally {
       setIsSubmitting(false);

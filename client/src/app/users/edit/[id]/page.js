@@ -106,21 +106,31 @@ export default function EditUserPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const phoneRegex = /^[6-9][0-9]{9}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!phoneRegex.test(formData.mobile)) {
+      toast.error("Enter valid mobile number");
+      setIsSubmitting(false);
+      return;
+    }
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Enter a valid email address");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await API.put(`/auth/users/${userId}`, formData);
       //   if (!response.ok) throw new Error("Failed to update user");
       router.push("/users");
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        toast.error(error.response.data.message);
+      const errorRes = error.response?.data;
+
+      if (errorRes?.errors) {
+        Object.values(errorRes.errors).forEach((msg) => toast.error(msg));
       } else {
-        toast.error("Something went wrong. Please try again.");
+        toast.error(errorRes?.error || "Something went wrong");
       }
-      console.error("Error updating user:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -179,6 +189,28 @@ export default function EditUserPage() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="userType">User Type</Label>
+                    <Select
+                      value={formData.userType}
+                      onValueChange={(value) =>
+                        handleSelectChange("userType", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select user type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="branch_manager">
+                          Branch Manager
+                        </SelectItem>
+                        <SelectItem value="packing_agent">
+                          Packing Agent
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {/* <span>{formData.branchId}</span> */}
                   <div className="space-y-2">
                     <Label htmlFor="branchId">Branch</Label>
@@ -204,32 +236,14 @@ export default function EditUserPage() {
                             return false; // Other roles don't show branches
                           })
                           .map((branch) => (
-                            <SelectItem key={branch._id} value={branch._id}>
-                              {branch.name}
+                            <SelectItem
+                              key={branch._id}
+                              value={branch._id}
+                              className="capitalize"
+                            >
+                              {branch.name} - {branch.code}
                             </SelectItem>
                           ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="userType">User Type</Label>
-                    <Select
-                      value={formData.userType}
-                      onValueChange={(value) =>
-                        handleSelectChange("userType", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select user type" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="branch_manager">
-                          Branch Manager
-                        </SelectItem>
-                        <SelectItem value="packing_agent">
-                          Packing Agent
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -1,7 +1,5 @@
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-// import WebhookData from "../models/webhook.js";
-// import authMiddleware from "../middleware/authMiddleware.js";
 
 // Create Order (via QR scan or manual entry)
 export const createOrder = async (req, res) => {
@@ -11,7 +9,10 @@ export const createOrder = async (req, res) => {
       customerName,
       address,
       packageDetails,
-      status,
+      branch,
+      orderItems,
+      customerMobile,
+      customerEmail,
       paymentStatus,
     } = req.body;
     // Check if an image was uploaded
@@ -25,11 +26,14 @@ export const createOrder = async (req, res) => {
       orderId,
       customerName,
       address,
+      branch,
+      orderItems,
+      customerMobile,
+      customerEmail,
       packageDetails: {
         ...packageDetails,
         ...(image && { image }), // Add image only if uploaded
       },
-      status,
       paymentStatus,
     });
 
@@ -53,16 +57,44 @@ export const createOrder = async (req, res) => {
 // };
 
 // Fetch Order by ID
+// export const getOrderById = async (req, res) => {
+//   try {
+//     const order = await Order.findOne({
+//       orderId: new RegExp(`^${req.params.orderId}$`, "i"),
+//     });
+
+//     if (!order) return res.status(404).json({ message: "Order not found" });
+
+//     res.json(order);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// };
 export const getOrderById = async (req, res) => {
   try {
+    const { role, id: userId } = req.query;
+
     const order = await Order.findOne({
       orderId: new RegExp(`^${req.params.orderId}$`, "i"),
     });
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
+    // Non-admins can only access orders from their branch
+    if (role !== "admin") {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      // console.log(user, "user", user.branch, "order:", order.branch);
+      if (user.branchName !== order.branch) {
+        return res
+          .status(403)
+          .json({ message: "Access denied: Not your branch Order" });
+      }
+    }
+
     res.json(order);
   } catch (error) {
+    console.error("Error fetching order by ID:", error);
     res.status(500).json({ message: "Server error", error });
   }
 };
@@ -137,6 +169,9 @@ export const updateOrder = async (req, res) => {
       price: price || existingOrder.price,
     };
 
+    if (isOnlyCustomerFieldsUpdated) {
+      updateFields.deliveredAt = Date.now(); // Or use Date.now() if schema uses timestamps
+    }
     // console.log("updateFields.deliveryStatus:", updateFields.deliveryStatus);
 
     // Update the order using the same case-insensitive match
@@ -159,85 +194,6 @@ export const updateOrder = async (req, res) => {
   }
 };
 
-// export const hookOrderId = async (req, res) => {
-//   //   console.log(req.body);
-//   try {
-//     const { orderId } = req.body;
-
-//     if (!orderId) {
-//       console.warn("⚠️ Invalid webhook payload: Missing orderId");
-//       return res.status(200).send("Webhook received with invalid data");
-//     }
-
-//     const saveWebhookInfo = await Order.findOneAndUpdate(
-//       { "zorder.cashmemo.orderId": orderId },
-//       { "zorder.cashmemo": req.body },
-//       { upsert: true }
-//     );
-
-//     if (saveWebhookInfo) {
-//       console.log(
-//         `✅ Webhook info saved for Order ${saveWebhookInfo.intent_no}`
-//       );
-//     }
-//     res.status(201).json({ message: "Data received and stored successfully" });
-//   } catch (error) {
-//     console.error("🚨 Webhook processing error:", error);
-//     return res.status(200).send("Webhook received. Internal processing error.");
-//   }
-// };
-
-// export const hookOrderId = async (req, res) => {
-//   try {
-//     const body = req.body;
-//     // console.log(re)
-//     // if (!orderId) {
-//     //   console.warn("⚠️ Invalid webhook payload: Missing orderId");
-//     //   return res
-//     //     .status(400)
-//     //     .json({ message: "Invalid webhook payload: Missing orderId" });
-//     // }
-
-//     // const storeData =  await Order.
-//     // const existingOrder = await Order.findOneAndUpdate({
-//     //   "zorder.cashmemo.orderId": orderId,
-//     // });
-
-//     // if (existingOrder) {
-//     //   console.log(
-//     //     `⚠️ Duplicate entry detected: Order ${orderId} already exists.`
-//     //   );
-//     //   return res
-//     //     .status(200)
-//     //     .json({ message: "Duplicate order: This order is already saved." , body});
-//     // }
-
-//     // // ✅ Save new order if not duplicate
-//     // const saveWebhookInfo = await Order.findOneAndUpdate(
-//     //   { orderId },
-//     //   { $set: { "zorder.cashmemo": req.body } },
-//     //   { upsert: true, new: true } // Upsert ensures new entry if not found
-//     // );
-
-//     // console.log(`✅ Webhook info saved for Order ${orderId}`);
-
-//     // res.status(201).json({
-//     //   message: "Data received and stored successfully",
-//     //   order: saveWebhookInfo,
-//     // });
-
-//     // const
-//   } catch (error) {
-//     console.error("🚨 Webhook processing error:", error);
-//     return res.status(500).json({ message: "Internal processing error." });
-//   }
-// };
-
-// import Order from "../models/Order.js"; // Ensure correct model import
-
-// export const hookOrderId = async (req, res) => {
-
-// };
 export const hookOrderId = async (req, res) => {
   try {
     const {
@@ -268,7 +224,8 @@ export const hookOrderId = async (req, res) => {
     ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-
+    const normalizedPaymentStatus = paymentStatus?.toLowerCase() || "";
+    const normalizedDeliveryStatus = deliveryStatus?.toLowerCase() || "";
     const existingOrder = await Order.findOne({ orderId });
 
     if (existingOrder) {
@@ -279,8 +236,8 @@ export const hookOrderId = async (req, res) => {
       existingOrder.orderItems = orderItems;
       existingOrder.branch = branch;
       existingOrder.orderDate = orderDate;
-      existingOrder.paymentStatus = paymentStatus;
-      existingOrder.deliveryStatus = deliveryStatus;
+      existingOrder.paymentStatus = normalizedPaymentStatus;
+      existingOrder.deliveryStatus = normalizedDeliveryStatus;
       existingOrder.orderValue = orderValue;
       existingOrder.contentHash = contentHash;
       existingOrder.rowId = rowId;
@@ -300,8 +257,8 @@ export const hookOrderId = async (req, res) => {
         orderItems,
         branch,
         orderDate,
-        paymentStatus,
-        deliveryStatus,
+        paymentStatus: normalizedPaymentStatus,
+        deliveryStatus: normalizedDeliveryStatus,
         orderValue,
         contentHash,
         rowId,
@@ -375,21 +332,58 @@ export const completeDelivery = async (req, res) => {
 };
 
 // Get Today's Deliveries
+// export const todayDelivers = async (req, res) => {
+//   //   console.log(req.body);
+//   try {
+//     const startOfDay = new Date();
+//     startOfDay.setHours(0, 0, 0, 0);
+//     // console.log(startOfDay);
+//     const endOfDay = new Date();
+//     endOfDay.setHours(23, 59, 59, 999);
+
+//     const todayOrders = await Order.find({
+//       orderDate: { $gte: startOfDay, $lt: endOfDay },
+//     });
+
+//     res.json(todayOrders);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// };
+// Get Today's Delivered Orders Count
+
 export const todayDelivers = async (req, res) => {
-  //   console.log(req.body);
   try {
+    const { role, id } = req.query;
+
+    const user = await User.findById(id).populate("branch");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    // console.log(startOfDay);
+
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const todayOrders = await Order.find({
-      orderDate: { $gte: startOfDay, $lt: endOfDay },
-    });
+    // Build base query
+    const query = {
+      deliveryStatus: "delivered",
+      deliveredAt: { $gte: startOfDay, $lt: endOfDay },
+    };
 
-    res.json(todayOrders);
+    // Restrict to branch if packing agent
+    if (role === "packing_agent") {
+      query.branch = user.branchName; // Assuming orders store branchName (not _id)
+    }
+
+    const todayDeliveredCount = await Order.countDocuments(query);
+
+    res.json(todayDeliveredCount);
   } catch (error) {
+    console.error("Error fetching today's deliveries:", error);
     res.status(500).json({ message: "Server error", error });
   }
 };
@@ -397,13 +391,18 @@ export const todayDelivers = async (req, res) => {
 export const getOrders = async (req, res) => {
   try {
     const { role, id: userId } = req.query;
-    // console.log(req.query);
-    if (role === "admin") {
-      const allOrders = await Order.find({});
-      // console.log(allOrders);
-      return res.json(allOrders);
+    // console.log(role, id);
+    if (!role || !userId) {
+      return res.status(400).json({ message: "Role or user ID missing" });
     }
 
+    // Admin can see all orders
+    if (role === "admin") {
+      const allOrders = await Order.find().sort({ createdAt: -1 });
+      return res.status(200).json(allOrders);
+    }
+
+    // Branch Manager can only see orders for their branch
     if (role === "branch_manager") {
       const user = await User.findById(userId).populate("branch");
 
@@ -413,15 +412,69 @@ export const getOrders = async (req, res) => {
 
       const branchName = user.branch.name;
 
-      const branchOrders = await Order.find({ branch: branchName });
+      const branchOrders = await Order.find({ branch: branchName }).sort({
+        createdAt: -1,
+      });
 
-      return res.json(branchOrders);
+      return res.status(200).json(branchOrders);
     }
 
-    // Packing Agent or other roles
+    // Other roles not allowed
     return res.status(403).json({ message: "Access denied" });
   } catch (error) {
     console.error("Error fetching orders:", error);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const orderCount = async (req, res) => {
+  try {
+    const { role, id: userId } = req.query;
+
+    if (!role || !userId) {
+      return res.status(400).json({ message: "Role or user ID missing" });
+    }
+
+    // Admin: Count all orders
+    if (role === "admin") {
+      const totalOrders = await Order.countDocuments();
+      const paidOrders = await Order.countDocuments({ paymentStatus: "paid" });
+
+      const percentagePaid =
+        totalOrders === 0
+          ? "0%"
+          : ((paidOrders / totalOrders) * 100).toFixed(2) + "%";
+
+      return res.json({ totalOrders, paidOrders, percentagePaid });
+    }
+
+    // Branch Manager: Count only branch orders
+    if (role === "branch_manager") {
+      const manager = await User.findById(userId).populate("branch");
+
+      if (!manager || !manager.branch) {
+        return res.status(403).json({ message: "Branch not assigned" });
+      }
+
+      const branchName = manager.branch.name;
+
+      const totalOrders = await Order.countDocuments({ branch: branchName });
+      const paidOrders = await Order.countDocuments({
+        branch: branchName,
+        paymentStatus: "paid",
+      });
+
+      const percentagePaid =
+        totalOrders === 0
+          ? "0%"
+          : ((paidOrders / totalOrders) * 100).toFixed(2) + "%";
+
+      return res.json({ totalOrders, paidOrders, percentagePaid });
+    }
+
+    return res.status(403).json({ message: "Access denied" });
+  } catch (error) {
+    console.error("Error in orderCount:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };

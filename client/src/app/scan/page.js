@@ -22,9 +22,13 @@ import { Separator } from "../components/ui/separator";
 // import ProtectedRoute from "../components/ProtectedRoute";
 import BarcodeScanner from "../components/BarcodeScanner";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
+import { toast } from "sonner";
+import API from "../utils/api";
+import { useAuth } from "../context/adminContext";
 
 export default function ScanPage() {
   const router = useRouter();
+  const { userInfo } = useAuth();
   const [flashOn, setFlashOn] = useState(false);
   const [scanning, setScanning] = useState(true);
   const [scanned, setScanned] = useState(false);
@@ -42,25 +46,34 @@ export default function ScanPage() {
     }
   }, [scanning]);
 
-  const handleBack = () => {
-    router.push("/dashboard");
-  };
-
-  // const handleRescan = () => {
-  //   setScanning(true);
-  //   setScanned(false);
-  // };
-
-  const handleManualSubmit = (e) => {
+  const fetchOrderDetails = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      if (orderNumber.trim()) {
+    try {
+      const res = await API.get(`/orders/${orderNumber}`, {
+        params: {
+          role: userInfo.role,
+          id: userInfo.id,
+        },
+      });
+
+      if (res?.data) {
+        // Redirect to order details only if data is found
         router.push(`/order-details?orderId=${orderNumber}`);
+      } else {
+        toast.error("Order not found.");
       }
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Order not found.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBack = () => {
+    router.push("/dashboard");
   };
 
   return (
@@ -165,7 +178,7 @@ export default function ScanPage() {
               <h2 className="font-medium">Manual Entry</h2>
             </div>
 
-            <form onSubmit={handleManualSubmit} className="space-y-4">
+            <form onSubmit={fetchOrderDetails} className="space-y-4">
               <div className="space-y-2">
                 <label
                   htmlFor="orderNumber"

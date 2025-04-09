@@ -120,7 +120,7 @@ export default function BranchesPage() {
       (branch) =>
         branch.name.toLowerCase().includes(term) ||
         branch.code.toLowerCase().includes(term) ||
-        branch.manager.name?.toLowerCase().includes(term) ||
+        branch.manager?.name.toLowerCase().includes(term) ||
         branch.phone.includes(term) ||
         branch.address.toLowerCase().includes(term)
     );

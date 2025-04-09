@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Users, Building, ArrowRight } from "lucide-react";
+import { Users, ArrowRight, Package } from "lucide-react";
 import Link from "next/link";
 import API from "../utils/api";
 import { useEffect, useState } from "react";
@@ -25,9 +25,10 @@ export default function Dashboard() {
     activeUsers: 0,
     percentageActive: "0%",
   });
-  const [branchStats, setBranchStats] = useState({
-    activeBranches: 0,
-    percentageActiveBranches: "0%",
+  const [orderStats, setOrderStats] = useState({
+    totalOrders: 0,
+    paidOrders: 0,
+    percentagePaid: "0%",
   });
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function Dashboard() {
             id: userInfo.id,
           },
         });
-        console.log(res);
+        // console.log(res);
         setUserStats(res.data);
       } catch (error) {
         console.error("Error fetching user stats:", error);
@@ -48,18 +49,23 @@ export default function Dashboard() {
     };
 
     // Fetch active branches count
-    const fetchBranchStats = async () => {
+
+    const fetchOrderStats = async () => {
       try {
-        const res = await API.get("/branches/active-count");
-        console.log(res);
-        setBranchStats(res.data);
+        const res = await API.get("/orders/order-count", {
+          params: {
+            role: userInfo.role,
+            id: userInfo.id,
+          },
+        });
+        setOrderStats(res.data);
       } catch (error) {
-        console.error("Error fetching branch stats:", error);
+        console.error("Error fetching order stats:", error);
       }
     };
 
     fetchUserStats();
-    fetchBranchStats();
+    fetchOrderStats();
   }, []);
 
   return (
@@ -112,31 +118,30 @@ export default function Dashboard() {
               </CardFooter>
             </Card>
 
-            {/* Branches Card */}
+            {/* Order Card */}
             <Card>
               <CardHeader className="flex flex-row items-center gap-4">
                 <div className="bg-[#D84315]/10 p-3 rounded-full">
-                  <Building className="h-8 w-8 text-[#D84315]" />
+                  <Package className="h-8 w-8 text-[#D84315]" />
                 </div>
                 <div>
-                  <CardTitle>Branches</CardTitle>
-                  <CardDescription>Manage store branches</CardDescription>
+                  <CardTitle>Orders</CardTitle>
+                  <CardDescription>Track all orders</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-3xl font-bold text-[#D84315]">
-                      {" "}
-                      {branchStats.activeBranches}
+                      {orderStats.paidOrders}
                     </span>
                     <span className="text-sm text-gray-500 ml-2">
-                      Active Branches
+                      Paid Orders
                     </span>
                   </div>
                   <div className="bg-green-100 px-3 py-1 rounded-full">
                     <span className="text-sm text-green-800">
-                      {branchStats.percentageActiveBranches} Active
+                      {orderStats.percentagePaid} Paid
                     </span>
                   </div>
                 </div>
@@ -147,8 +152,8 @@ export default function Dashboard() {
                   className="flex items-center gap-2"
                   asChild
                 >
-                  <Link href="/branches">
-                    Manage Branches
+                  <Link href="/orders">
+                    View Orders
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>

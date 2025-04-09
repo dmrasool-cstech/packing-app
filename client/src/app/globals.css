@@ -81,9 +81,7 @@
     --custom-primary:200 61 21 1;
   }
 }
-* {
-  /* @apply border-border; */
-}
+
 .bg-custom-primary{
   @apply bg-[#c83d15] hover:bg-[#b4330b] cursor-pointer;
 }

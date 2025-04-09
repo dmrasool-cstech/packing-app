@@ -20,17 +20,17 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import API from "../utils/api";
-import ProtectedRoute from "../components/ProtectedRoute";
+// import ProtectedRoute from "../components/ProtectedRoute";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
 // import ProtectedRoute from "../components/ProtectedRoute";
 
 // Define validation schema using Zod
-const currentDate = new Date();
-const minDOB = new Date(
-  currentDate.getFullYear() - 16,
-  currentDate.getMonth(),
-  currentDate.getDate()
-);
+// const currentDate = new Date();
+// const minDOB = new Date(
+//   currentDate.getFullYear() - 16,
+//   currentDate.getMonth(),
+//   currentDate.getDate()
+// );
 
 const formSchema = z.object({
   name: z.string().min(3, "Full name must be at least 3 characters."),
@@ -65,7 +65,7 @@ export default function CustomerDetailsPage() {
   const handleBack = () => {
     router.push("/order-details");
   };
-  console.log("orderId:", orderId);
+
   const handleSaveDetails = async (data) => {
     if (!orderId) {
       console.error("Order ID is missing");

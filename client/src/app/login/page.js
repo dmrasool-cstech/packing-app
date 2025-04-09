@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   const loginSchema = z.object({
     email: z.string().email("Invalid email"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(3, "Password must be at least 3 characters"),
   });
 
   const {
@@ -58,9 +58,9 @@ export default function LoginPage() {
       // console.log(user.role);
       if (user.role === "admin") {
         router.push("/admin-dashboard");
-      } else if (
-        ["packing_agent", "branch_manager", "admin"].includes(user.role)
-      ) {
+      } else if (user.role === "branch_manager") {
+        router.push("/manager-dashboard");
+      } else if (["packing_agent", "admin"].includes(user.role)) {
         router.push("/dashboard");
       } else {
         router.push("/not-authorized");

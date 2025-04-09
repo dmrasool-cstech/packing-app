@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+// import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -17,9 +17,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-// import { Button } from "../components/ui/button";
 import { Search } from "lucide-react";
-
 import { toast } from "sonner";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
 import API from "../utils/api";
@@ -40,7 +38,13 @@ export default function OrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  //   console.log(userInfo);
+  const [filters, setFilters] = useState({
+    period: "",
+    deliveryStatus: "",
+    paymentStatus: "",
+    branch: "",
+  });
+
   const fetchOrders = async () => {
     try {
       const res = await API.get("/orders/all", {
@@ -50,7 +54,7 @@ export default function OrdersPage() {
         },
       });
       const data = res.data;
-      console.log(res.data);
+      console.log(data);
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {
@@ -65,14 +69,37 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const term = searchTerm.toLowerCase();
-    const filtered = orders.filter(
-      (order) =>
-        order.orderId.toLowerCase().includes(term) ||
-        order.deliveryStatus.toLowerCase().includes(term) ||
-        order.paymentStatus.toLowerCase().includes(term)
-    );
+    const now = new Date();
+
+    const filtered = orders.filter((order) => {
+      const orderDate = new Date(order.orderDate);
+
+      let isWithinPeriod = true;
+      if (filters.period === "last7days") {
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        isWithinPeriod = orderDate >= sevenDaysAgo;
+      } else if (filters.period === "thisMonth") {
+        isWithinPeriod =
+          orderDate.getMonth() === now.getMonth() &&
+          orderDate.getFullYear() === now.getFullYear();
+      }
+
+      return (
+        (order.orderId.toLowerCase().includes(term) ||
+          order.deliveryStatus.toLowerCase().includes(term) ||
+          order.paymentStatus.toLowerCase().includes(term)) &&
+        (!filters.deliveryStatus ||
+          order.deliveryStatus === filters.deliveryStatus) &&
+        (!filters.paymentStatus ||
+          order.paymentStatus === filters.paymentStatus) &&
+        (!filters.branch || order.branch === filters.branch) &&
+        isWithinPeriod
+      );
+    });
+
     setFilteredOrders(filtered);
-  }, [searchTerm, orders]);
+  }, [searchTerm, orders, filters]);
 
   const handlePaymentStatusChange = async (id, newStatus) => {
     try {
@@ -101,7 +128,8 @@ export default function OrdersPage() {
           <Card>
             <CardHeader>
               <CardTitle>All Orders</CardTitle>
-              <div className="flex items-center mt-2">
+              <div className="flex items-center mt-2 flex-wrap gap-4">
+                {/* Search Input */}
                 <div className="relative max-w-sm">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
@@ -112,6 +140,86 @@ export default function OrdersPage() {
                     className="pl-8 w-[300px]"
                   />
                 </div>
+
+                {/* Filters */}
+                <select
+                  className="border px-3 text-sm py-2 rounded-md"
+                  value={filters.period}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      period: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">All Time</option>
+                  <option value="last7days">Last 7 Days</option>
+                  <option value="thisMonth">This Month</option>
+                </select>
+
+                <select
+                  className="border text-sm px-3 py-2 rounded-md"
+                  value={filters.deliveryStatus}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      deliveryStatus: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">All Delivery Status</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="not delivered">Not Delivered</option>
+                </select>
+
+                <select
+                  className="border text-sm px-3 py-2 rounded-md"
+                  value={filters.paymentStatus}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      paymentStatus: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">All Payment Status</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                </select>
+
+                <select
+                  className="border text-sm px-3 py-2 rounded-md"
+                  value={filters.branch}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      branch: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">All Branches</option>
+                  {[
+                    ...new Set(orders.map((o) => o.branch).filter(Boolean)),
+                  ].map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  className="text-sm text-[#c83d15]  border border-[#c83d15] px-3 py-2 rounded-md"
+                  onClick={() =>
+                    setFilters({
+                      period: "",
+                      deliveryStatus: "",
+                      paymentStatus: "",
+                      branch: "",
+                    })
+                  }
+                >
+                  Reset Filters
+                </button>
               </div>
             </CardHeader>
             <CardContent>
@@ -122,9 +230,11 @@ export default function OrdersPage() {
                     <TableHead>Branch</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Order Date</TableHead>
+                    <TableHead>Customer Name</TableHead>
+                    <TableHead>Customer Email</TableHead>
+                    <TableHead>Customer Mobile</TableHead>
                     <TableHead>Delivery Status</TableHead>
                     <TableHead>Payment Status</TableHead>
-                    {/* <TableHead className="text-right">Actions</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -132,14 +242,11 @@ export default function OrdersPage() {
                     <TableRow key={order._id}>
                       <TableCell>{order.orderId}</TableCell>
                       <TableCell>{order.branch || "N/A"}</TableCell>
-                      <TableCell>
-                        {/* <ul className="list-disc pl-4"> */}
-                        {order.orderItems || 0}
-
-                        {/* </ul> */}
-                      </TableCell>
-
+                      <TableCell>{order.orderItems || 0}</TableCell>
                       <TableCell>{formatDate(order.orderDate)}</TableCell>
+                      <TableCell>{order.customerName || "N/A"}</TableCell>
+                      <TableCell>{order.customerEmail || "N/A"}</TableCell>
+                      <TableCell>{order.customerMobile || "N/A"}</TableCell>
                       <TableCell>
                         <Badge
                           className={`capitalize ${
@@ -163,12 +270,6 @@ export default function OrdersPage() {
                           <option value="pending">Pending</option>
                         </select>
                       </TableCell>
-                      {/* <TableCell className="text-right text-sm text-gray-500"> */}
-                      {/* Optional Actions */}
-                      {/* <Link href={`/orders/view/${order._id}`}>
-                          View Details
-                        </Link> */}
-                      {/* </TableCell> */}
                     </TableRow>
                   ))}
                   {filteredOrders.length === 0 && (

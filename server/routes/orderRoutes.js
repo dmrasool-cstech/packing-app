@@ -5,6 +5,7 @@ import {
   getOrderById,
   getOrders,
   hookOrderId,
+  orderCount,
   todayDelivers,
   updateOrder,
   updatePaymentStatus,
@@ -48,6 +49,7 @@ const router = express.Router();
 router.post("/create", upload.single("image"), createOrder);
 router.get("/today", todayDelivers);
 router.get("/all", getOrders);
+router.get("/order-count", orderCount);
 router.get("/:orderId", getOrderById);
 router.put("/webhook/qr-scan", hookOrderId);
 router.post("/update/:id", upload.single("image"), updateOrder);

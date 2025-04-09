@@ -25,10 +25,11 @@ export default function Profile() {
   //   console.log(user);
   function handleBack() {
     // console.log("History Length:", window.history.length);
+    // router.back();
     if (window.history.length > 1) {
-      router.back(); // Go back only if there's a previous page
+      router.push("/dashboard"); // browser native back
     } else {
-      router.push("/dashboard"); // Fallback if there's no history
+      router.push("/dashboard"); // fallback
     }
   }
   console.log("Name:", userInfo.name);

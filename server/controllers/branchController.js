@@ -1,5 +1,6 @@
 import Branch from "../models/Branch.js";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
 // import mongoose from "mongoose";
 
 // **Create Branch (Admin Only)**
@@ -18,10 +19,35 @@ export const createBranch = async (req, res) => {
       packingAgents = [], // Expecting an array of user _ids
     } = req.body;
 
-    // Check for duplicate branch code
-    const existingBranch = await Branch.findOne({ code });
+    const errors = {};
+
+    // ✅ Field-level validation
+    if (!name) errors.name = "Branch name is required";
+    if (!code) errors.code = "Branch code is required";
+    if (!address) errors.address = "Address is required";
+    if (!pincode) errors.pincode = "Pincode is required";
+    if (!state) errors.state = "State is required";
+    if (!city) errors.city = "City is required";
+    if (!phone) errors.phone = "Phone number is required";
+    if (!status) errors.status = "Status is required";
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    const existingBranch = await Branch.findOne({
+      $or: [
+        { name: { $regex: `^${name}$`, $options: "i" } },
+        { code: { $regex: `^${code}$`, $options: "i" } },
+      ],
+    });
+
     if (existingBranch) {
-      return res.status(400).json({ message: "Branch code already exists" });
+      return res.status(400).json({
+        errors: {
+          message: "Branch with same name or code already exists",
+        },
+      });
     }
 
     // Validate manager (optional)
@@ -31,9 +57,9 @@ export const createBranch = async (req, res) => {
         role: "branch_manager",
       });
       if (!managerExists) {
-        return res
-          .status(400)
-          .json({ message: "Invalid or non-existent branch manager" });
+        return res.status(400).json({
+          errors: { manager: "Invalid or non-existent branch manager" },
+        });
       }
     }
 
@@ -44,9 +70,9 @@ export const createBranch = async (req, res) => {
         role: "packing_agent",
       });
       if (validAgents.length !== packingAgents.length) {
-        return res
-          .status(400)
-          .json({ message: "One or more packing agents are invalid" });
+        return res.status(400).json({
+          errors: { packingAgents: "One or more packing agents are invalid" },
+        });
       }
     }
 
@@ -67,7 +93,7 @@ export const createBranch = async (req, res) => {
     res.status(201).json({ message: "Branch created successfully", branch });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -192,7 +218,7 @@ export const deleteBranch = async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
     if (!branch) return res.status(404).json({ message: "Branch not found" });
-
+    await Order.deleteMany({ branch: branch.name });
     await branch.deleteOne();
     res.json({ message: "Branch deleted successfully" });
   } catch (error) {
@@ -224,7 +250,7 @@ export const branchCount = async (req, res) => {
 // **Get Active Branch Names**
 export const getBranchesNames = async (req, res) => {
   try {
-    const branches = await Branch.find().select("_id name manager");
+    const branches = await Branch.find().select("_id name code manager");
     // console.log(branches);
     res.json(branches);
   } catch (error) {
