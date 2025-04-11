@@ -8,6 +8,7 @@ const rolePermissions = {
   admin: ["*"], // full access
   packing_agent: [
     "/dashboard",
+    "/today-orders",
     "/scan",
     "/order-details",
     "/customer-details",

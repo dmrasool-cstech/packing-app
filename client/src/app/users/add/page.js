@@ -189,7 +189,7 @@ export default function AddUserPage() {
                       <SelectTrigger>
                         <SelectValue placeholder="Select user type" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectContent className="bg-white h-36">
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="branch_manager">
                           Branch Manager
@@ -212,7 +212,7 @@ export default function AddUserPage() {
                       <SelectTrigger>
                         <SelectValue placeholder="Select branch" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectContent className="bg-white h-36">
                         {branches
                           .filter((branch) => {
                             if (formData.userType === "branch_manager") {

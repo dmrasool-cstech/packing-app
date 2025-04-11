@@ -2,6 +2,7 @@ import Branch from "../models/Branch.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 // import mongoose from "mongoose";
+// import redisClient from "../utils/radisClient.js";
 
 // **Create Branch (Admin Only)**
 export const createBranch = async (req, res) => {
@@ -98,12 +99,37 @@ export const createBranch = async (req, res) => {
 };
 
 // **Get All Branches (Admin Only)**
+// export const allBranches = async (req, res) => {
+//   try {
+//     const branches = await Branch.find()
+//       .populate("manager", "name email") // populate only `name` and `email` of manager
+//       .populate("packingAgents", "name email"); // populate packing agent names and emails
+//     // console.log("branches", branches);
+//     res.json(branches);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
 export const allBranches = async (req, res) => {
   try {
+    // const cacheKey = "branches:all";
+
+    // Check cache first
+    // const cachedBranches = await redisClient.get(cacheKey);
+    // if (cachedBranches) {
+    //   return res.json(JSON.parse(cachedBranches));
+    // }
+
+    // Not in cache — fetch from DB
     const branches = await Branch.find()
-      .populate("manager", "name email") // populate only `name` and `email` of manager
-      .populate("packingAgents", "name email"); // populate packing agent names and emails
-    // console.log("branches", branches);
+      .populate("manager", "name email")
+      .populate("packingAgents", "name email");
+
+    // Store in Redis cache for next time (optional: set expiry)
+    // await redisClient.set(cacheKey, JSON.stringify(branches), {
+    //   EX: 60, // 1 hour
+    // });
+
     res.json(branches);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -113,10 +139,22 @@ export const allBranches = async (req, res) => {
 // **Get Branch by ID**
 export const getBranchById = async (req, res) => {
   try {
-    const branch = await Branch.findById(req.params.id);
+    const branchId = req.params.id;
+    // const cacheKey = `branch:${branchId}`;
+    // Check if data exists in Redis cache
+    // const cachedBranch = await redisClient.get(cacheKey);
+    // if (cachedBranch) {
+    //   console.log("Returning cached branch");
+    //   return res.json(JSON.parse(cachedBranch));
+    // }
+    const branch = await Branch.findById(branchId);
+
     if (!branch) {
       return res.status(404).json({ message: "Branch not found" });
     }
+    // await redisClient.set(cacheKey, JSON.stringify(branch), {
+    //   EX: 60, // Cache for 1 min
+    // });
     res.json(branch);
   } catch (error) {
     console.error("Error fetching branch:", error);
@@ -158,7 +196,8 @@ export const updateBranch = async (req, res) => {
       packingAgents = [], // new packing agent IDs (optional)
     } = req.body;
 
-    const branch = await Branch.findById(req.params.id);
+    const branchId = req.params.id;
+    const branch = await Branch.findById(branchId);
     if (!branch) {
       return res.status(404).json({ message: "Branch not found" });
     }
@@ -203,7 +242,8 @@ export const updateBranch = async (req, res) => {
     if (city) branch.city = city;
     if (phone) branch.phone = phone;
     if (status) branch.status = status;
-
+    // await redisClient.del(`branch:${branchId}`);
+    // await redisClient.del("branches:all");
     await branch.save();
 
     res.json({ message: "Branch updated successfully", branch });
@@ -216,10 +256,13 @@ export const updateBranch = async (req, res) => {
 // **Delete Branch (Admin Only)**
 export const deleteBranch = async (req, res) => {
   try {
-    const branch = await Branch.findById(req.params.id);
+    const branchId = req.params.id;
+    const branch = await Branch.findById(branchId);
     if (!branch) return res.status(404).json({ message: "Branch not found" });
     await Order.deleteMany({ branch: branch.name });
     await branch.deleteOne();
+    // await redisClient.del(`branch:${branchId}`);
+    // await redisClient.del("branches:all");
     res.json({ message: "Branch deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -250,7 +293,9 @@ export const branchCount = async (req, res) => {
 // **Get Active Branch Names**
 export const getBranchesNames = async (req, res) => {
   try {
-    const branches = await Branch.find().select("_id name code manager");
+    const branches = await Branch.find()
+      .select("_id name code manager")
+      .sort({ name: 1 });
     // console.log(branches);
     res.json(branches);
   } catch (error) {

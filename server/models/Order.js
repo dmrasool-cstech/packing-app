@@ -120,7 +120,10 @@ const orderSchema = new mongoose.Schema(
     },
 
     deliveredAt: { type: Date },
-
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     orderValue: { type: Number, required: true, default: 0 },
 
     contentHash: { type: String, unique: true },

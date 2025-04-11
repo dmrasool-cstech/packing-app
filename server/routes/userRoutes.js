@@ -2,6 +2,7 @@ import express from "express";
 import {
   activeUserCount,
   addUser,
+  changePassword,
   deleteUser,
   forgotPassword,
   getActiveUsers,
@@ -25,6 +26,7 @@ router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
 router.get("/getactiveusers", getActiveUsers);
 router.put("/users/:id", updateUser);
+router.put("/change-password/:id", changePassword);
 router.delete("/users/:id", deleteUser);
 // /forgot-password
 export default router;

@@ -5,6 +5,7 @@ import CryptoJS from "crypto-js";
 import User from "../models/User.js";
 import dotenv from "dotenv";
 import Branch from "../models/Branch.js";
+// import redisClient from "../utils/radisClient.js";
 
 dotenv.config();
 
@@ -17,6 +18,87 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
+
+// export const forgotPassword = async (req, res) => {
+//   const { email } = req.body;
+
+//   try {
+//     // Rate limit per email (3 requests/hour)
+//     const redisKey = `fp_attempts:${email}`;
+//     const attempts = await redisClient.get(redisKey);
+//     if (attempts && parseInt(attempts) >= 3) {
+//       return res
+//         .status(429)
+//         .json({ message: "Too many requests. Please try again after 1 hour." });
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     // Check if a token already exists and is not expired
+//     if (
+//       user.resetPasswordToken &&
+//       user.resetPasswordExpires &&
+//       user.resetPasswordExpires > Date.now()
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ message: "Reset link already sent. Please check your email." });
+//     }
+
+//     // Generate secure token
+//     const rawToken = CryptoJS.lib.WordArray.random(20).toString(
+//       CryptoJS.enc.Hex
+//     );
+//     const hashedToken = CryptoJS.SHA256(rawToken).toString();
+
+//     // Save token & expiration
+//     user.resetPasswordToken = hashedToken;
+//     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+//     await user.save();
+
+//     // Store attempt in Redis
+//     await redisClient.incr(redisKey);
+//     await redisClient.expire(redisKey, 60 * 60); // 1 hour
+
+//     const resetURL = `${process.env.CLIENT_URL}/reset-password?token=${rawToken}`;
+
+//     const mailOptions = {
+//       to: user.email,
+//       from: process.env.SMTP_USER,
+//       subject: "Reset Your Meenabazaar Password",
+//       html: `
+//         <div style="background-color: #f9f9f9; padding: 30px; font-family: Arial, sans-serif; color: #333;">
+//           <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden;">
+//             <div style="background-color: #D84315; padding: 20px; text-align: center;">
+//               <h1 style="color: #fff; margin: 0;">Meenabazaar</h1>
+//             </div>
+//             <div style="padding: 30px;">
+//               <h2>Hello ${user.name || "User"},</h2>
+//               <p>You recently requested to reset your password for your Meenabazaar account.</p>
+//               <p>Click the button below to reset it:</p>
+//               <div style="text-align: center; margin: 30px 0;">
+//                 <a href="${resetURL}" style="background-color: #D84315; color: #fff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 16px;">Reset Password</a>
+//               </div>
+//               <p>If you did not request a password reset, you can safely ignore this email. This link will expire in 1 hour.</p>
+//               <p>Thank you,<br/>The Meenabazaar Team</p>
+//             </div>
+//           </div>
+//         </div>
+//       `,
+//       text: `Reset your Meenabazaar password: ${resetURL}`,
+//     };
+
+//     await transporter.sendMail(mailOptions);
+
+//     res.json({ message: "Password reset link sent to your email" });
+//   } catch (error) {
+//     console.error("Error in forgotPassword:", error);
+//     res
+//       .status(500)
+//       .json({ message: "Error sending email", error: error.message });
+//   }
+// };
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -36,24 +118,24 @@ export const forgotPassword = async (req, res) => {
       from: process.env.SMTP_USER,
       subject: "Reset Your Meenabazaar Password",
       html: `
-        <div style="background-color: #f9f9f9; padding: 30px; font-family: Arial, sans-serif; color: #333;">
-          <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden;">
-            <div style="background-color: #D84315; padding: 20px; text-align: center;">
-              <h1 style="color: #fff; margin: 0;">Meenabazaar</h1>
-            </div>
-            <div style="padding: 30px;">
-              <h2>Hello ${user.name || "User"},</h2>
-              <p>You recently requested to reset your password for your Meenabazaar account.</p>
-              <p>Click the button below to reset it:</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetURL}" style="background-color: #D84315; color: #fff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 16px;">Reset Password</a>
+              <div style="background-color: #f9f9f9; padding: 30px; font-family: Arial, sans-serif; color: #333;">
+                <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden;">
+                  <div style="background-color: #D84315; padding: 20px; text-align: center;">
+                    <h1 style="color: #fff; margin: 0;">Meenabazaar</h1>
+                  </div>
+                  <div style="padding: 30px;">
+                    <h2>Hello ${user.name || "User"},</h2>
+                    <p>You recently requested to reset your password for your Meenabazaar account.</p>
+                    <p>Click the button below to reset it:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${resetURL}" style="background-color: #D84315; color: #fff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 16px;">Reset Password</a>
+                    </div>
+                    <p>If you did not request a password reset, you can safely ignore this email. This link will expire in 1 hour.</p>
+                    <p>Thank you,<br/>The Meenabazaar Team</p>
+                  </div>
+                </div>
               </div>
-              <p>If you did not request a password reset, you can safely ignore this email. This link will expire in 1 hour.</p>
-              <p>Thank you,<br/>The Meenabazaar Team</p>
-            </div>
-          </div>
-        </div>
-      `,
+            `,
       text: `Reset your Meenabazaar password: ${resetURL}`,
     };
 
@@ -151,13 +233,33 @@ export const getAllUsers = async (req, res) => {
       return res.status(400).json({ message: "Role or user ID missing" });
     }
 
-    // Admin can view all users
+    // Define cache key based on role
+    // const cacheKey =
+    //   role === "admin"
+    //     ? "users:admin"
+    //     : role === "branch_manager"
+    //     ? `users:branch:${userId}`
+    //     : "";
+
+    // Check cache
+    // const cachedData = await redisClient.get(cacheKey);
+    // if (cachedData) {
+    //   return res.status(200).json(JSON.parse(cachedData));
+    // }
+
+    let users;
+
+    // Admin: Fetch all users
     if (role === "admin") {
-      const users = await User.find().select("-password");
+      users = await User.find().select("-password");
+
+      // Cache for 10 minutes
+      // await redisClient.setEx(cacheKey, 600, JSON.stringify(users));
+
       return res.status(200).json(users);
     }
 
-    // Branch Manager can view only users from their branch (excluding themselves)
+    // Branch Manager: Fetch users from the same branch
     if (role === "branch_manager") {
       const manager = await User.findById(userId).populate("branch");
 
@@ -165,15 +267,17 @@ export const getAllUsers = async (req, res) => {
         return res.status(403).json({ message: "Branch not assigned" });
       }
 
-      const branchUsers = await User.find({
+      users = await User.find({
         branch: manager.branch._id,
-        _id: { $ne: userId }, // exclude the branch manager themself
+        _id: { $ne: userId },
       }).select("-password");
 
-      return res.status(200).json(branchUsers);
+      // Cache for 10 minutes
+      // await redisClient.setEx(cacheKey, 600, JSON.stringify(users));
+
+      return res.status(200).json(users);
     }
 
-    // Other roles not allowed
     return res.status(403).json({ message: "Access denied" });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -302,6 +406,42 @@ export const addUser = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+//Change Password
+export const changePassword = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    console.log("Incoming data:", name, email, password);
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ errors: { user: "User not found!" } });
+    }
+
+    const errors = {};
+    if (!name?.trim()) errors.name = "Name is required";
+    if (!email?.trim()) errors.email = "Email is required";
+    if (!password?.trim()) errors.password = "Password is required";
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    user.name = name;
+    user.email = email;
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+    }
+
+    await user.save();
+
+    res.json({ message: "User updated successfully", user });
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
 
 export const updateUser = async (req, res) => {
   try {
@@ -316,28 +456,14 @@ export const updateUser = async (req, res) => {
 
     if (!name) errors.name = "Name is required";
     if (!email) errors.email = "Email is required";
+
     if (!mobile) errors.mobile = "Mobile number is required";
+
     if (!userType) errors.userType = "User type is required";
-    // if (!password) errors.password = "Password is required";
 
     if (Object.keys(errors).length > 0) {
       return res.status(400).json({ errors });
     }
-
-    // // Check for duplicate name or email
-    // const duplicateName = await User.findOne({ name });
-    // if (duplicateName) {
-    //   return res
-    //     .status(400)
-    //     .json({ errors: { name: "Username already exists" } });
-    // }
-
-    // const existingUser = await User.findOne({ email });
-    // if (existingUser) {
-    //   return res
-    //     .status(400)
-    //     .json({ errors: { email: "Email already registered" } });
-    // }
 
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
@@ -409,7 +535,13 @@ export const updateUser = async (req, res) => {
     if (password) user.password = await bcrypt.hash(password, 10);
 
     await user.save();
-
+    // 🧼 Step 4: Invalidate Redis Cache
+    // await redisClient.del("users:admin"); // Admin cache
+    // await redisClient.del(`users:branch:${req.params.id}`); // This user (if branch manager)
+    // if (user.branch) {
+    //   await redisClient.del(`users:branch:${user.branch.toString()}`); // Clear branch users
+    // }
+    // await redisClient.del(`user:${user._id}`);
     res.json({ message: "User updated successfully", user });
   } catch (error) {
     console.error("Error in updateUser:", error);
@@ -437,6 +569,12 @@ export const deleteUser = async (req, res) => {
     }
 
     await user.deleteOne();
+    // 🧼 Invalidate relevant Redis cache keys
+    // await redisClient.del("users:admin"); // Invalidate admin user list
+    // if (user.branch) {
+    //   await redisClient.del(`users:branch:${user.branch.toString()}`); // Invalidate branch users
+    // }
+    // await redisClient.del(`user:${user._id}`);
     res.json({ message: "User deleted successfully" });
   } catch (error) {
     console.error("Error in deleteUser:", error);
@@ -508,8 +646,10 @@ export const getActiveUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const userId = req.params.id;
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
+    // await redisClient.set(`user:${userId}`, JSON.stringify(user), { EX: 100 });
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: "Server error" });

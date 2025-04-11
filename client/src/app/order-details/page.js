@@ -42,6 +42,7 @@ export default function OrderDetailsPage() {
     }
 
     const fetchOrderDetails = async () => {
+      if (!orderId || !userInfo) return;
       try {
         setLoading(true);
         const res = await API.get(`/orders/${orderId}`, {
@@ -53,9 +54,6 @@ export default function OrderDetailsPage() {
         console.log(res.data);
         setOrder(res.data);
       } catch (err) {
-        // if (err?.response?.data?.message) {
-        //   toast.error(err?.response?.data?.message);
-        // }
         console.error(err || err?.response?.data?.message);
         setError(err);
       } finally {
@@ -64,10 +62,14 @@ export default function OrderDetailsPage() {
     };
 
     fetchOrderDetails();
-  }, [orderId]);
+  }, [orderId, userInfo]);
 
   const handleBack = () => {
-    router.push("/dashboard");
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -79,7 +81,10 @@ export default function OrderDetailsPage() {
         <p>Please provide a valid Order ID.</p>
         <Button
           className="bg-custom-primary text-white px-3 py-1.5 "
-          onClick={handleBack}
+          onClick={(e) => {
+            e.preventDefault();
+            handleBack();
+          }}
         >
           Go Back
         </Button>
@@ -98,7 +103,10 @@ export default function OrderDetailsPage() {
         <p>{errorMsg}</p>
         <Button
           className="bg-custom-primary text-white px-3 py-1.5"
-          onClick={handleBack}
+          onClick={(e) => {
+            e.preventDefault();
+            handleBack();
+          }}
         >
           Go Back
         </Button>
@@ -294,14 +302,14 @@ export default function OrderDetailsPage() {
             <Home className="h-5 w-5 text-gray-400" />
             <span className="text-xs text-gray-400">Home</span>
           </Button>
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className="flex flex-col items-center h-auto gap-1 bg-transparent text-custom-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
           >
             <Package className="h-5 w-5 text-gray-400" />
             <span className="text-xs text-gray-400">Deliveries</span>
-          </Button>
+          </Button> */}
           <Button
             variant="ghost"
             size="icon"

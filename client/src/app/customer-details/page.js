@@ -22,6 +22,7 @@ import { Input } from "../components/ui/input";
 import API from "../utils/api";
 // import ProtectedRoute from "../components/ProtectedRoute";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
+import { useAuth } from "../context/adminContext";
 // import ProtectedRoute from "../components/ProtectedRoute";
 
 // Define validation schema using Zod
@@ -51,6 +52,7 @@ const formSchema = z.object({
 
 export default function CustomerDetailsPage() {
   const router = useRouter();
+  const { userInfo } = useAuth();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
 
@@ -73,7 +75,11 @@ export default function CustomerDetailsPage() {
     }
 
     try {
-      const response = await API.post(`/orders/update/${orderId}`, data);
+      await API.post(`/orders/update/${orderId}`, data, {
+        params: {
+          id: userInfo.id,
+        },
+      });
 
       router.push("/dashboard");
     } catch (error) {
@@ -214,14 +220,14 @@ export default function CustomerDetailsPage() {
             <HomeIcon className="h-5 w-5 text-gray-400" />
             <span className="text-xs text-gray-400">Home</span>
           </Button>
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className="flex flex-col items-center h-auto gap-1 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
           >
             <Package className="h-5 w-5 text-gray-400" />
             <span className="text-xs text-gray-400">Deliveries</span>
-          </Button>
+          </Button> */}
           <Button
             variant="ghost"
             size="icon"

@@ -37,15 +37,17 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [filters, setFilters] = useState({
     period: "",
     deliveryStatus: "",
     paymentStatus: "",
-    branch: "",
+    branchCode: "",
   });
-
+  // console.log("hello");
   const fetchOrders = async () => {
+    setLoading(true);
     try {
       const res = await API.get("/orders/all", {
         params: {
@@ -54,12 +56,14 @@ export default function OrdersPage() {
         },
       });
       const data = res.data;
-      console.log(data);
+      // console.log("data", data);
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {
       console.error("Error fetching orders:", error);
-      toast.error("Failed to load orders.");
+      // toast.error("Failed to load orders.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,7 +97,7 @@ export default function OrdersPage() {
           order.deliveryStatus === filters.deliveryStatus) &&
         (!filters.paymentStatus ||
           order.paymentStatus === filters.paymentStatus) &&
-        (!filters.branch || order.branch === filters.branch) &&
+        (!filters.branchCode || order.branchCode === filters.branchCode) &&
         isWithinPeriod
       );
     });
@@ -140,86 +144,98 @@ export default function OrdersPage() {
                     className="pl-8 w-[300px]"
                   />
                 </div>
-
-                {/* Filters */}
-                <select
-                  className="border px-3 text-sm py-2 rounded-md"
-                  value={filters.period}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      period: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">All Time</option>
-                  <option value="last7days">Last 7 Days</option>
-                  <option value="thisMonth">This Month</option>
-                </select>
-
-                <select
-                  className="border text-sm px-3 py-2 rounded-md"
-                  value={filters.deliveryStatus}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      deliveryStatus: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">All Delivery Status</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="not delivered">Not Delivered</option>
-                </select>
-
-                <select
-                  className="border text-sm px-3 py-2 rounded-md"
-                  value={filters.paymentStatus}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      paymentStatus: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">All Payment Status</option>
-                  <option value="paid">Paid</option>
-                  <option value="pending">Pending</option>
-                </select>
-
-                <select
-                  className="border text-sm px-3 py-2 rounded-md"
-                  value={filters.branch}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      branch: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">All Branches</option>
-                  {[
-                    ...new Set(orders.map((o) => o.branch).filter(Boolean)),
-                  ].map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  className="text-sm text-[#c83d15]  border border-[#c83d15] px-3 py-2 rounded-md"
-                  onClick={() =>
-                    setFilters({
-                      period: "",
-                      deliveryStatus: "",
-                      paymentStatus: "",
-                      branch: "",
-                    })
-                  }
-                >
-                  Reset Filters
-                </button>
+                {userInfo?.role === "packing_agent" ? (
+                  ""
+                ) : (
+                  <>
+                    {/* Filters */}
+                    <select
+                      className="border px-3 text-sm py-2 rounded-md"
+                      value={filters.period}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          period: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">All Time</option>
+                      <option value="last7days">Last 7 Days</option>
+                      <option value="thisMonth">This Month</option>
+                    </select>
+                    <select
+                      className="border text-sm px-3 py-2 rounded-md"
+                      value={filters.deliveryStatus}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          deliveryStatus: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">All Delivery Status</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="not delivered">Not Delivered</option>
+                    </select>
+                    <select
+                      className="border text-sm px-3 py-2 rounded-md"
+                      value={filters.paymentStatus}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          paymentStatus: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">All Payment Status</option>
+                      <option value="paid">Paid</option>
+                      <option value="pending">Pending</option>
+                    </select>
+                  </>
+                )}
+                {userInfo?.role === "branch_manager" ||
+                userInfo?.role === "packing_agent" ? (
+                  ""
+                ) : (
+                  <select
+                    className="border text-sm px-3 py-2 rounded-md"
+                    value={filters.branchCode}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        branchCode: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">All Branches</option>
+                    {[
+                      ...new Set(
+                        orders.map((o) => o.branchCode).filter(Boolean)
+                      ),
+                    ].map((branch) => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {userInfo?.role === "packing_agent" ? (
+                  ""
+                ) : (
+                  <button
+                    className="text-sm text-[#c83d15]  border border-[#c83d15] px-3 py-2 rounded-md"
+                    onClick={() =>
+                      setFilters({
+                        period: "",
+                        deliveryStatus: "",
+                        paymentStatus: "",
+                        branchCode: "",
+                      })
+                    }
+                  >
+                    Reset Filters
+                  </button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -227,55 +243,145 @@ export default function OrdersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order ID</TableHead>
-                    <TableHead>Branch</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Customer Name</TableHead>
-                    <TableHead>Customer Email</TableHead>
-                    <TableHead>Customer Mobile</TableHead>
+                    <TableHead>Order Info</TableHead>
+                    <TableHead>Branch Info</TableHead>
+                    {/* <TableHead>Customer Info</TableHead> */}
                     <TableHead>Delivery Status</TableHead>
+                    <TableHead>Delivery Info</TableHead>
                     <TableHead>Payment Status</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {filteredOrders.map((order) => (
-                    <TableRow key={order._id}>
-                      <TableCell>{order.orderId}</TableCell>
-                      <TableCell>{order.branch || "N/A"}</TableCell>
-                      <TableCell>{order.orderItems || 0}</TableCell>
-                      <TableCell>{formatDate(order.orderDate)}</TableCell>
-                      <TableCell>{order.customerName || "N/A"}</TableCell>
-                      <TableCell>{order.customerEmail || "N/A"}</TableCell>
-                      <TableCell>{order.customerMobile || "N/A"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`capitalize ${
-                            order.deliveryStatus === "delivered"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {order.deliveryStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <select
-                          value={order.paymentStatus}
-                          onChange={(e) =>
-                            handlePaymentStatusChange(order._id, e.target.value)
-                          }
-                          className="border px-2 py-1 rounded text-sm"
-                        >
-                          <option value="paid">Paid</option>
-                          <option value="pending">Pending</option>
-                        </select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredOrders.length === 0 && (
+                  {loading ? (
                     <TableRow>
                       <TableCell
                         colSpan={6}
+                        className="text-center py-6 text-gray-500"
+                      >
+                        Loading orders...
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <TableRow key={order.id || order._id}>
+                        <TableCell>{order.orderId || "N/A"}</TableCell>
+                        <TableCell className="text-sm leading-relaxed space-y-1">
+                          <div>
+                            <strong>Items:</strong> {order.orderItems || 0}
+                          </div>
+                          <div>
+                            <strong>Amount:</strong> ₹
+                            {order.orderAmount ||
+                              order.orderItems.split("-")[1] ||
+                              "N/A"}
+                          </div>
+                          <div>
+                            <strong>Date:</strong> {order.orderDate || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Time:</strong> {order.orderTime || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Name:</strong> {order.orderName || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Email:</strong> {order.orderEmail || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Mobile:</strong> {order.orderPhone || "N/A"}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-sm leading-relaxed space-y-1">
+                          <div>
+                            <strong>Name:</strong> {order.branchName || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Code:</strong> {order.branchCode || "N/A"}
+                          </div>
+                        </TableCell>
+
+                        {/* <TableCell className="text-sm leading-relaxed space-y-1">
+                        <div>
+                          <strong>Name:</strong> {order.orderName || "N/A"}
+                        </div>
+                        <div>
+                          <strong>Email:</strong> {order.orderEmail || "N/A"}
+                        </div>
+                        <div>
+                          <strong>Mobile:</strong> {order.orderPhone || "N/A"}
+                        </div>
+                      </TableCell> */}
+                        <TableCell>
+                          <Badge
+                            className={`capitalize ${
+                              order.deliveryStatus === "delivered"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {order.deliveryStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm leading-relaxed space-y-1">
+                          {/* <div>
+                          <strong>Status:</strong>{" "}
+                          <Badge
+                            className={`capitalize ${
+                              order.deliveryStatus === "delivered"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {order.deliveryStatus}
+                          </Badge>
+                        </div> */}
+                          <div>
+                            <strong>By:</strong> {order.deliveredBy || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Date:</strong> {order.deliveryDate || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Time:</strong> {order.deliveryTime || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Name:</strong> {order.deliveryName || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Email:</strong>{" "}
+                            {order.deliveryEmail || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Mobile:</strong>{" "}
+                            {order.deliveryMobile || "N/A"}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <select
+                            value={order.paymentStatus}
+                            onChange={(e) =>
+                              handlePaymentStatusChange(
+                                order._id,
+                                e.target.value
+                              )
+                            }
+                            className="border px-2 py-1 rounded text-sm"
+                          >
+                            <option value="paid">Paid</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+
+                  {filteredOrders.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
                         className="text-center py-6 text-gray-500"
                       >
                         No orders found.

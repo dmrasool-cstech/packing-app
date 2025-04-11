@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  FlashlightOffIcon as FlashOff,
-  FlashlightIcon as Flash,
+  // FlashlightOffIcon as FlashOff,
+  // FlashlightIcon as Flash,
   Camera,
   // RotateCcw,
   Home,
@@ -29,7 +29,7 @@ import { useAuth } from "../context/adminContext";
 export default function ScanPage() {
   const router = useRouter();
   const { userInfo } = useAuth();
-  const [flashOn, setFlashOn] = useState(false);
+  // const [flashOn, setFlashOn] = useState(false);
   const [scanning, setScanning] = useState(true);
   const [scanned, setScanned] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -98,7 +98,7 @@ export default function ScanPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-medium">Find Order</h1>
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className="rounded-full hover:text-[#0f172a] hover:bg-[#f1f5f9] cursor-pointer"
@@ -109,7 +109,7 @@ export default function ScanPage() {
             ) : (
               <FlashOff className="h-5 w-5" />
             )}
-          </Button>
+          </Button> */}
         </div>
 
         <div className="flex-1 overflow-auto">
@@ -233,13 +233,13 @@ export default function ScanPage() {
             <Camera className="h-5 w-5 text-custom-primary" />
             <span className="text-xs font-medium">Scan</span>
           </Button>
-          <Button
+          {/* <Button
             className="bg-transparent text-custom-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
             size="icon"
           >
             <Package className="h-5 w-5 text-gray-400" />
             <span className="text-xs text-gray-400">Deliveries</span>
-          </Button>
+          </Button> */}
           <Button
             className="bg-transparent text-custom-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
             size="icon"

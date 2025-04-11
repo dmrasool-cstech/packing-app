@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,11 +16,12 @@ import API from "../utils/api";
 import { useAuth } from "../context/adminContext";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { userInfo, login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // ✅ Zod schema
   const loginSchema = z.object({
     email: z.string().email("Invalid email"),
     password: z.string().min(3, "Password must be at least 3 characters"),
@@ -34,8 +35,30 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
+  // 🔄 Centralized role-based redirect
+  const redirectUser = (role) => {
+    if (role === "admin") {
+      router.replace("/admin-dashboard");
+    } else if (role === "branch_manager") {
+      router.replace("/manager-dashboard");
+    } else if (role === "packing_agent") {
+      router.replace("/dashboard");
+    } else {
+      router.replace("/not-authorized");
+    }
+  };
+
+  // 🔐 If already logged in, redirect based on role
+  useEffect(() => {
+    if (userInfo?.role) {
+      redirectUser(userInfo.role);
+    }
+  }, [userInfo]);
+
+  if (userInfo?.role) return null; // Prevent login page from showing
+
   const onSubmit = async (data) => {
-    if (loading) return; // Prevent multiple clicks
+    if (loading) return;
     setLoading(true);
 
     try {
@@ -46,41 +69,29 @@ export default function LoginPage() {
         throw new Error("Invalid response from server");
       }
 
-      // Store user data in local storage
       localStorage.setItem("usertoken", token);
       localStorage.setItem("userrole", user.role);
-      localStorage.setItem("userData", JSON.stringify(response.data.user));
+      localStorage.setItem("userData", JSON.stringify(user));
 
       login(response.data);
       toast.success("Login successful!");
-
-      // Role-based navigation
-      // console.log(user.role);
-      if (user.role === "admin") {
-        router.push("/admin-dashboard");
-      } else if (user.role === "branch_manager") {
-        router.push("/manager-dashboard");
-      } else if (["packing_agent", "admin"].includes(user.role)) {
-        router.push("/dashboard");
-      } else {
-        router.push("/not-authorized");
-      }
+      redirectUser(user.role); // 🔁 Redirect based on role
     } catch (error) {
       console.log(error);
       toast.error(error.response?.data?.message || "Invalid Credentials");
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* App Header */}
+      {/* Header */}
       <div className="px-4 py-3 flex items-center border-b text-center">
         <h1 className="text-lg font-medium">Sign In</h1>
       </div>
 
-      {/* Main Content */}
+      {/* Body */}
       <div className="flex-1 px-5 pt-8 pb-4 overflow-auto">
         <div className="flex flex-col items-center mb-8">
           <div className="h-16 w-16 rounded-full bg-custom-primary flex items-center justify-center mb-4">
@@ -91,7 +102,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Email Field */}
+          {/* Email */}
           <div className="space-y-1">
             <p className="text-sm font-medium mb-1 ml-1">Email</p>
             <Input
@@ -104,7 +115,7 @@ export default function LoginPage() {
             <p className="text-red-500">{errors.email?.message}</p>
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div className="space-y-1">
             <p className="text-sm font-medium mb-1 ml-1">Password</p>
             <div className="relative">
@@ -130,7 +141,7 @@ export default function LoginPage() {
             <p className="text-red-500">{errors.password?.message}</p>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <Button
             type="submit"
             className="w-full h-12 rounded-xl mt-6 text-base bg-custom-primary hover:bg-custom-primary-dark text-white flex items-center justify-center"
@@ -153,6 +164,7 @@ export default function LoginPage() {
         </form>
       </div>
 
+      {/* Bottom indicator */}
       <div className="h-1 w-32 bg-gray-300 rounded-full mx-auto mb-2"></div>
     </div>
   );

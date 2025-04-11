@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Package,
+  // Package,
   // TrendingUp,
   // Bell,
   User,
@@ -11,6 +11,7 @@ import {
   // List,
   Plus,
   LogOut,
+  List,
   // Link,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -18,6 +19,7 @@ import API from "../utils/api";
 // import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../context/adminContext";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
+import Image from "next/image";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function DashboardPage() {
           },
         });
         // console.log(res.data);
-        setTodaysOrders(res.data);
+        setTodaysOrders(res.data.todayDeliveredCount);
         // console.log(res.data);
       } catch (error) {
         console.error("Error fetching today's orders:", error);
@@ -67,8 +69,17 @@ export default function DashboardPage() {
     <AdminProtectedRoute>
       <div className="flex flex-col h-screen bg-white">
         {/* App Header */}
-        <div className="px-4 py-3 flex items-center justify-between border-b">
-          <h1 className="text-lg font-semibold">Dashboard</h1>
+        <div className="px-4 py-3 flex items-center justify-between border-b bg-[#c83d15] text-white">
+          {/* <h1 className="text-lg font-semibold">Dashboard</h1> */}
+          <div className="relative h-10 w-auto">
+            <Image
+              src="/images/meena-bazaar-logo.png"
+              alt="Meena Bazaar"
+              className="h-10 w-auto"
+              width={100} // or actual pixel width
+              height={40} // adjust according to your design
+            />
+          </div>
           <div className="flex items-center gap-2">
             {/* <Button
               variant="ghost"
@@ -84,7 +95,7 @@ export default function DashboardPage() {
                 className="rounded-full hover:text-[#0f172a] hover:bg-[#f1f5f9] cursor-pointer"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <User className="h-5 w-5" />
+                <User className="h-10 w-10" />
               </Button>
 
               {isDropdownOpen && (
@@ -137,13 +148,13 @@ export default function DashboardPage() {
 
           {/* Main Action Buttons */}
           <div className="space-y-4">
-            {/* <Button
-            className="w-full h-16 rounded-xl bg-white border-2 border-custom-primary text-custom-primary hover:bg-gray-50 flex items-center justify-center gap-3"
-            // onClick={() => setShowOrders(!showOrders)}
-          >
-            <List className="h-5 w-5" />
-            <span className="text-base font-medium">View Today's Orders</span>
-          </Button> */}
+            <Button
+              className="w-full h-16 rounded-xl bg-white border-2 border-custom-primary text-custom-primary hover:bg-gray-50 flex items-center justify-center gap-3"
+              onClick={() => router.push("/today-orders")}
+            >
+              <List className="h-5 w-5" />
+              <span className="text-base font-medium">View Today's Orders</span>
+            </Button>
 
             <Button
               className="w-full h-16 rounded-xl bg-custom-primary text-white flex items-center justify-center gap-3"
@@ -168,7 +179,7 @@ export default function DashboardPage() {
               Home
             </span>
           </Button>
-          <Button
+          {/* <Button
             size="icon"
             className="flex flex-col items-center h-auto gap-1 bg-transparent text-custom-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
             // onClick={() => router.push("/orders")}
@@ -177,7 +188,7 @@ export default function DashboardPage() {
             <span to="/orders" className="text-xs text-gray-400">
               Orders
             </span>
-          </Button>
+          </Button> */}
           <Button
             size="icon"
             className="flex flex-col items-center h-auto gap-1 bg-transparent text-custom-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"

@@ -30,7 +30,8 @@ export default function Error({ message }) {
           </p>
           <Button
             className="w-full bg-[#D84315] hover:bg-[#c53a11] text-white font-medium cursor-pointer"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
               if (typeof window !== "undefined") {
                 if (
                   document.referrer &&

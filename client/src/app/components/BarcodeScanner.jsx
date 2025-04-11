@@ -40,6 +40,17 @@ export default function BarcodeScanner() {
       ])
     )
   );
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh(); // force component reload
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [router]);
 
   useEffect(() => {
     startScanning();
@@ -152,6 +163,7 @@ export default function BarcodeScanner() {
     if (scannedCode.length >= 6) {
       setOrderId(scannedCode);
       setHasProcessed(true);
+      // router.push(`/order-details?orderId=${scannedCode}`);
       fetchOrderDetails(scannedCode);
     } else {
       setError("Invalid barcode detected. Please try again.");
@@ -172,7 +184,7 @@ export default function BarcodeScanner() {
 
       if (res?.data) {
         // Redirect to order details only if data is found
-        router.push(`/order-details?orderId=${code}`);
+        router.replace(`/order-details?orderId=${code}`);
       } else {
         toast.error("Order not found.");
         setHasProcessed(false);
@@ -181,7 +193,6 @@ export default function BarcodeScanner() {
       console.error(err);
       toast.error(err?.response?.data?.message || "Order not found.");
       setHasProcessed(false);
-      return;
     } finally {
       setIsSubmitting(false);
     }
