@@ -2,7 +2,7 @@ import Branch from "../models/Branch.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 // import mongoose from "mongoose";
-// import redisClient from "../utils/radisClient.js";
+import redisClient from "../utils/radisClient.js";
 
 // **Create Branch (Admin Only)**
 export const createBranch = async (req, res) => {
@@ -22,7 +22,7 @@ export const createBranch = async (req, res) => {
 
     const errors = {};
 
-    // ✅ Field-level validation
+    // Field-level validation
     if (!name) errors.name = "Branch name is required";
     if (!code) errors.code = "Branch code is required";
     if (!address) errors.address = "Address is required";
@@ -112,13 +112,13 @@ export const createBranch = async (req, res) => {
 // };
 export const allBranches = async (req, res) => {
   try {
-    // const cacheKey = "branches:all";
+    const cacheKey = "branches:all";
 
     // Check cache first
-    // const cachedBranches = await redisClient.get(cacheKey);
-    // if (cachedBranches) {
-    //   return res.json(JSON.parse(cachedBranches));
-    // }
+    const cachedBranches = await redisClient.get(cacheKey);
+    if (cachedBranches) {
+      return res.json(JSON.parse(cachedBranches));
+    }
 
     // Not in cache — fetch from DB
     const branches = await Branch.find()
@@ -126,9 +126,9 @@ export const allBranches = async (req, res) => {
       .populate("packingAgents", "name email");
 
     // Store in Redis cache for next time (optional: set expiry)
-    // await redisClient.set(cacheKey, JSON.stringify(branches), {
-    //   EX: 60, // 1 hour
-    // });
+    await redisClient.set(cacheKey, JSON.stringify(branches), {
+      EX: 60, // 1 hour
+    });
 
     res.json(branches);
   } catch (error) {
@@ -140,21 +140,21 @@ export const allBranches = async (req, res) => {
 export const getBranchById = async (req, res) => {
   try {
     const branchId = req.params.id;
-    // const cacheKey = `branch:${branchId}`;
+    const cacheKey = `branch:${branchId}`;
     // Check if data exists in Redis cache
-    // const cachedBranch = await redisClient.get(cacheKey);
-    // if (cachedBranch) {
-    //   console.log("Returning cached branch");
-    //   return res.json(JSON.parse(cachedBranch));
-    // }
+    const cachedBranch = await redisClient.get(cacheKey); // ← UNCOMMENTED THIS
+    if (cachedBranch) {
+      console.log("Returning cached branch");
+      return res.json(JSON.parse(cachedBranch));
+    }
     const branch = await Branch.findById(branchId);
 
     if (!branch) {
       return res.status(404).json({ message: "Branch not found" });
     }
-    // await redisClient.set(cacheKey, JSON.stringify(branch), {
-    //   EX: 60, // Cache for 1 min
-    // });
+    await redisClient.set(cacheKey, JSON.stringify(branch), {
+      EX: 60,
+    });
     res.json(branch);
   } catch (error) {
     console.error("Error fetching branch:", error);
@@ -242,10 +242,10 @@ export const updateBranch = async (req, res) => {
     if (city) branch.city = city;
     if (phone) branch.phone = phone;
     if (status) branch.status = status;
-    // await redisClient.del(`branch:${branchId}`);
-    // await redisClient.del("branches:all");
-    await branch.save();
 
+    await branch.save();
+    await redisClient.del(`branch:${branchId}`);
+    await redisClient.del("branches:all");
     res.json({ message: "Branch updated successfully", branch });
   } catch (error) {
     console.error("Error updating branch:", error);
@@ -261,8 +261,8 @@ export const deleteBranch = async (req, res) => {
     if (!branch) return res.status(404).json({ message: "Branch not found" });
     await Order.deleteMany({ branch: branch.name });
     await branch.deleteOne();
-    // await redisClient.del(`branch:${branchId}`);
-    // await redisClient.del("branches:all");
+    await redisClient.del(`branch:${branchId}`);
+    await redisClient.del("branches:all");
     res.json({ message: "Branch deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

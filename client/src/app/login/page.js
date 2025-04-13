@@ -49,11 +49,11 @@ export default function LoginPage() {
   };
 
   // 🔐 If already logged in, redirect based on role
-  useEffect(() => {
-    if (userInfo?.role) {
-      redirectUser(userInfo.role);
-    }
-  }, [userInfo]);
+  // useEffect(() => {
+  //   if (userInfo?.role) {
+  //     redirectUser(userInfo.role);
+  //   }
+  // }, [userInfo]);
 
   if (userInfo?.role) return null; // Prevent login page from showing
 

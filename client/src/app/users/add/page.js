@@ -104,7 +104,7 @@ export default function AddUserPage() {
     try {
       await API.post("/auth/users/add", formData);
       // Redirect to users list on success
-      router.push("/users");
+      router.replace("/users");
     } catch (error) {
       console.log(error);
       const errorRes = error.response?.data;

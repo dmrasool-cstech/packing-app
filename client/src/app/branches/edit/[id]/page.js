@@ -181,7 +181,7 @@ export default function EditBranchPage() {
       try {
         const response = await API.get(`/branches/${branchId}`);
         const branch = response.data;
-
+        // console.log(branch);
         if (!branch) throw new Error("Branch not found");
 
         setFormData({
@@ -288,7 +288,7 @@ export default function EditBranchPage() {
                     <Label htmlFor="branchName">Branch Name</Label>
                     <Input
                       id="branchName"
-                      name="branchName"
+                      name="name"
                       value={formData.name}
                       onChange={handleChange}
                       required
@@ -300,7 +300,7 @@ export default function EditBranchPage() {
                     <Label htmlFor="branchCode">Branch Code</Label>
                     <Input
                       id="branchCode"
-                      name="branchCode"
+                      name="code"
                       value={formData.code}
                       onChange={handleChange}
                       required

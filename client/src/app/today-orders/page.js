@@ -134,7 +134,14 @@ export default function TodayOrderspage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  const formatToIST = (utcDateTime) => {
+    if (!utcDateTime) return "N/A";
 
+    const date = new Date(utcDateTime);
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+    });
+  };
   return (
     <AdminProtectedRoute>
       <div className="flex min-h-screen flex-col">

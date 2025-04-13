@@ -105,21 +105,45 @@ export default function OrdersPage() {
     setFilteredOrders(filtered);
   }, [searchTerm, orders, filters]);
 
+  // const handlePaymentStatusChange = async (id, newStatus) => {
+  //   console.log(id);
+  //   try {
+  //     await API.patch(`/orders/update/${id}`, { paymentStatus: newStatus });
+  //     const updated = orders.map((order) =>
+  //       order._id === id ? { ...order, paymentStatus: newStatus } : order
+  //     );
+  //     setOrders([...updated]);
+  //     setFilteredOrders([...updated]);
+  //     toast.success("Payment status updated.");
+  //   } catch (error) {
+  //     console.error("Failed to update payment status:", error);
+  //     toast.error("Update failed.");
+  //   }
+  // };
   const handlePaymentStatusChange = async (id, newStatus) => {
     try {
-      await API.patch(`/orders/update/${id}`, { paymentStatus: newStatus });
+      // 1. Optimistically update UI
       const updated = orders.map((order) =>
         order._id === id ? { ...order, paymentStatus: newStatus } : order
       );
       setOrders(updated);
       setFilteredOrders(updated);
+
+      // 2. Send to backend
+      await API.patch(`/orders/update/${id}`, { paymentStatus: newStatus });
+
+      // 3. Now re-fetch orders to get latest from cache or DB
+      await fetchOrders(); // Or refetch from React Query if you're using it
+
       toast.success("Payment status updated.");
     } catch (error) {
       console.error("Failed to update payment status:", error);
-      toast.error("Update failed.");
+      toast.error("Update failed. Try again.");
+
+      // Optional: Rollback optimistic update
+      await fetchOrders();
     }
   };
-
   return (
     <AdminProtectedRoute>
       <div className="flex min-h-screen flex-col">
@@ -325,18 +349,6 @@ export default function OrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm leading-relaxed space-y-1">
-                          {/* <div>
-                          <strong>Status:</strong>{" "}
-                          <Badge
-                            className={`capitalize ${
-                              order.deliveryStatus === "delivered"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {order.deliveryStatus}
-                          </Badge>
-                        </div> */}
                           <div>
                             <strong>By:</strong> {order.deliveredBy || "N/A"}
                           </div>
@@ -364,7 +376,7 @@ export default function OrdersPage() {
                             value={order.paymentStatus}
                             onChange={(e) =>
                               handlePaymentStatusChange(
-                                order._id,
+                                order._id || order.id,
                                 e.target.value
                               )
                             }
@@ -378,16 +390,18 @@ export default function OrdersPage() {
                     ))
                   )}
 
-                  {filteredOrders.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-center py-6 text-gray-500"
-                      >
-                        No orders found.
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  {loading
+                    ? ""
+                    : filteredOrders.length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={5}
+                            className="text-center py-6 text-gray-500"
+                          >
+                            No orders found.
+                          </TableCell>
+                        </TableRow>
+                      )}
                 </TableBody>
               </Table>
             </CardContent>

@@ -129,7 +129,7 @@ export default function AddBranchPage() {
     }
     try {
       await API.post("/branches", formData);
-      router.push("/branches");
+      router.replace("/branches");
     } catch (error) {
       console.log(error);
       const errorRes = error.response?.data;

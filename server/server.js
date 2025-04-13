@@ -10,6 +10,7 @@ import branchRoutes from "./routes/branchRoutes.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
+import logger from "./utils/logger.js";
 
 dotenv.config();
 const app = express();
@@ -31,7 +32,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/", (req, res) => {
   res.send("server is running");
 });
+logger.info("🚀 Winston logger is working!");
 
+console.log("Logger test done");
 // Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/orders", orderRoutes);

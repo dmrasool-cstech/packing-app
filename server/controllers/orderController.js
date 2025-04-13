@@ -1,8 +1,9 @@
 import Branch from "../models/Branch.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-// import redisClient from "../utils/radisClient.js";
+import redisClient from "../utils/radisClient.js";
 // Create Order (via QR scan or manual entry)
+
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -47,87 +48,53 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// // Fetch All Orders
-// export const orders = async (req, res) => {
-//   try {
-//     const orders = await Order.find().sort({ createdAt: -1 });
-//     res.json(orders);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error });
-//   }
-// };
-
-// Fetch Order by ID
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findOne({
-      orderId: new RegExp(`^${req.params.orderId}$`, "i"),
-    });
+    const { role, id: userId } = req.query;
+    const { orderId } = req.params;
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    //  1. Try cache first
+    const cachedOrder = await redisClient.get(`order:${orderId.toLowerCase()}`);
+    let order;
+
+    if (cachedOrder) {
+      order = JSON.parse(cachedOrder);
+      console.log("Order served from cache");
+    } else {
+      //  2. Fetch from DB if not cached
+      order = await Order.findOne({
+        orderId: new RegExp(`^${orderId}$`, "i"),
+      });
+
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      // 3. Store in Redis for future requests
+      await redisClient.set(
+        `order:${orderId.toLowerCase()}`,
+        JSON.stringify(order),
+        "EX",
+        60 // Cache for 5 minutes
+      );
+    }
+
+    //  4. Permission check (should not be cached)
+    if (role !== "admin") {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (user.branchName !== order.branch) {
+        return res
+          .status(403)
+          .json({ message: "Access denied: Not your branch Order" });
+      }
+    }
 
     res.json(order);
   } catch (error) {
+    console.error("Error fetching order by ID:", error);
     res.status(500).json({ message: "Server error", error });
   }
 };
-
-// export const getOrderById = async (req, res) => {
-//   try {
-//     const { role, id: userId } = req.query;
-//     const { orderId } = req.params;
-
-//     const cacheKey = `order:${orderId}`;
-
-//     // Try to fetch from Redis cache
-//     const cachedOrder = await redisClient.get(cacheKey);
-//     if (cachedOrder) {
-//       const parsedOrder = JSON.parse(cachedOrder);
-
-//       // Check branch access if not admin
-//       if (role !== "admin") {
-//         const user = await User.findById(userId);
-//         if (!user) return res.status(404).json({ message: "User not found" });
-
-//         if (user.branchName !== parsedOrder.branch) {
-//           return res.status(403).json({
-//             message: "Access denied: Not your branch Order (from cache)",
-//           });
-//         }
-//       }
-
-//       console.log(`Order ${orderId} served from cache`);
-//       return res.json(parsedOrder);
-//     }
-
-//     // If not in cache, fetch from DB
-//     const order = await Order.findOne({
-//       orderId: new RegExp(`^${orderId}$`, "i"),
-//     });
-
-//     if (!order) return res.status(404).json({ message: "Order not found" });
-
-//     // Check branch access if not admin
-//     if (role !== "admin") {
-//       const user = await User.findById(userId);
-//       if (!user) return res.status(404).json({ message: "User not found" });
-
-//       if (user.branchName !== order.branch) {
-//         return res
-//           .status(403)
-//           .json({ message: "Access denied: Not your branch Order" });
-//       }
-//     }
-
-//     // Cache the order for 5 minutes
-//     await redisClient.set(cacheKey, JSON.stringify(order), { EX: 60 });
-//     // console.log(`Order ${orderId} cached in Redis`);
-//     res.json(order);
-//   } catch (error) {
-//     console.error("Error fetching order by ID:", error);
-//     res.status(500).json({ message: "Server error", error });
-//   }
-// };
 
 // Update Order Status
 export const updateOrder = async (req, res) => {
@@ -218,11 +185,11 @@ export const updateOrder = async (req, res) => {
     if (!updatedOrder) {
       return res.status(404).json({ message: "Order update failed" });
     }
-    // await redisClient.del(`order:${updatedOrder.orderId}`); // single order cache
-    // await redisClient.del("orders:admin"); // admin's order list cache
-    // if (updatedOrder.branch) {
-    //   await redisClient.del(`orders:branch:${updatedOrder.branch}`); // branch orders
-    // }
+    await redisClient.del(`order:${updatedOrder.orderId}`); // single order cache
+    await redisClient.del("orders:admin"); // admin's order list cache
+    if (updatedOrder.branch) {
+      await redisClient.del(`orders:branch:${updatedOrder.branch}`); // branch orders
+    }
     res.json({ message: "Order updated successfully", order: updatedOrder });
   } catch (error) {
     console.error("Update Order Error:", error);
@@ -281,11 +248,11 @@ export const hookOrderId = async (req, res) => {
 
       await existingOrder.save();
       // ✅ Invalidate Redis cache
-      // await redisClient.del(`order:${existingOrder.orderId}`);
-      // await redisClient.del("orders:admin");
-      // if (existingOrder.branch) {
-      //   await redisClient.del(`orders:branch:${existingOrder.branch}`);
-      // }
+      await redisClient.del(`order:${existingOrder.orderId}`);
+      await redisClient.del("orders:admin");
+      if (existingOrder.branch) {
+        await redisClient.del(`orders:branch:${existingOrder.branch}`);
+      }
       return res
         .status(200)
         .json({ message: "Order updated successfully", order: existingOrder });
@@ -306,19 +273,19 @@ export const hookOrderId = async (req, res) => {
         rowId,
         rowNo,
       });
-      // await redisClient.del(`order:${updatedOrder.orderId}`); // single order cache
-      // await redisClient.del("orders:admin"); // admin's order list cache
-      // if (updatedOrder.branch) {
-      //   await redisClient.del(`orders:branch:${updatedOrder.branch}`); // branch orders
-      // }
+      await redisClient.del(`order:${updatedOrder.orderId}`); // single order cache
+      await redisClient.del("orders:admin"); // admin's order list cache
+      if (updatedOrder.branch) {
+        await redisClient.del(`orders:branch:${updatedOrder.branch}`); // branch orders
+      }
 
       await newOrder.save();
       // ✅ Invalidate Redis cache after insert
-      // await redisClient.del(`order:${newOrder.orderId}`);
-      // await redisClient.del("orders:admin");
-      // if (newOrder.branch) {
-      //   await redisClient.del(`orders:branch:${newOrder.branch}`);
-      // }
+      await redisClient.del(`order:${newOrder.orderId}`);
+      await redisClient.del("orders:admin");
+      if (newOrder.branch) {
+        await redisClient.del(`orders:branch:${newOrder.branch}`);
+      }
       return res
         .status(201)
         .json({ message: "Order created successfully", order: newOrder });
@@ -335,6 +302,8 @@ export const updatePaymentStatus = async (req, res) => {
     const { id } = req.params;
     const { paymentStatus } = req.body;
 
+    // console.log(id, paymentStatus);
+
     if (!paymentStatus) {
       return res.status(400).json({ message: "Payment status is required" });
     }
@@ -349,9 +318,37 @@ export const updatePaymentStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Payment status updated", order: updatedOrder });
+    // Re-fetch to ensure you have the latest populated order
+    const freshOrder = await Order.findById(id).populate("branch").lean();
+    console.log(freshOrder);
+    // Invalidate all related cache keys
+    if (freshOrder.orderId) {
+      await redisClient.del(`order:${freshOrder.orderId.toLowerCase()}`);
+    }
+
+    await redisClient.del("orders:admin");
+    if (freshOrder.branch?.name) {
+      await redisClient.del(`orders:branch:${freshOrder.branch.name}`);
+    }
+
+    // Re-cache updated branch data
+    if (freshOrder.branch?.name) {
+      const freshBranchOrders = await Order.find({
+        branch: freshOrder.branch.name,
+      }).lean();
+
+      await redisClient.set(
+        `orders:branch:${freshOrder.branch.name}`,
+        JSON.stringify(freshBranchOrders),
+        "EX",
+        60
+      );
+    }
+
+    return res.status(200).json({
+      message: "Payment status updated successfully",
+      order: freshOrder,
+    });
   } catch (error) {
     console.error("Error updating payment status:", error);
     res
@@ -385,6 +382,10 @@ export const completeDelivery = async (req, res) => {
 };
 
 // Get Today's Delivered Orders Count
+const convertToIST = (dateStr) => {
+  const date = new Date(dateStr);
+  return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+};
 
 // export const todayDelivers = async (req, res) => {
 //   try {
@@ -452,14 +453,14 @@ export const todayDelivers = async (req, res) => {
     }
 
     // Unique cache key for this role and user
-    // const cacheKey = `todayDelivers:${role}:${id}`;
+    const cacheKey = `todayDelivers:${role}:${id}`;
 
     // Try Redis cache
-    // const cachedData = await redisClient.get(cacheKey);
-    // if (cachedData) {
-    //   // console.log(`Cache hit: ${cacheKey}`);
-    //   return res.status(200).json(JSON.parse(cachedData));
-    // }
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      //   // console.log(`Cache hit: ${cacheKey}`);
+      return res.status(200).json(JSON.parse(cachedData));
+    }
 
     const todayDeliveredCount = await Order.countDocuments(query);
     const todayOrders = await Order.find(query).populate("user");
@@ -471,8 +472,12 @@ export const todayDelivers = async (req, res) => {
       return {
         id: order._id,
         orderId: order.orderId,
-        orderDate: order.orderDate.toLocaleDateString(),
-        orderTime: order.orderDate.toLocaleTimeString(),
+        orderDate: order.orderDate.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        }),
+        orderTime: order.orderDate
+          ? convertToIST(order.deliveredAt).split(",")[1].trim()
+          : "",
         orderItems: order.orderItems,
         orderAmount: order.orderValue,
         orderName: order.customerName,
@@ -498,9 +503,9 @@ export const todayDelivers = async (req, res) => {
       todayDeliveredCount,
       todayOrders: formattedTodayOrders,
     };
-    // await redisClient.set(cacheKey, JSON.stringify(result), {
-    //   EX: 60,
-    // });
+    await redisClient.set(cacheKey, JSON.stringify(result), {
+      EX: 60,
+    });
     res.json({
       todayDeliveredCount,
       todayOrders: formattedTodayOrders,
@@ -531,20 +536,20 @@ export const getOrders = async (req, res) => {
     // console.log(deliveredBy, branchName, branchCode);
     let orders = [];
     // Generate unique cache key based on role and branch
-    // const cacheKey =
-    //   role === "admin"
-    //     ? "orders:admin"
-    //     : role === "branch_manager"
-    //     ? `orders:branch:${branchName}`
-    //     : "";
+    const cacheKey =
+      role === "admin"
+        ? "orders:admin"
+        : role === "branch_manager"
+        ? `orders:branch:${branchName}`
+        : "";
 
-    // if (cacheKey) {
-    //   const cachedOrders = await redisClient.get(cacheKey);
-    //   if (cachedOrders) {
-    //     console.log("Returning cached orders");
-    //     return res.status(200).json(JSON.parse(cachedOrders));
-    //   }
-    // }
+    if (cacheKey) {
+      const cachedOrders = await redisClient.get(cacheKey);
+      if (cachedOrders) {
+        console.log("Returning cached orders");
+        return res.status(200).json(JSON.parse(cachedOrders));
+      }
+    }
 
     if (role === "admin") {
       orders = await Order.find()
@@ -570,8 +575,12 @@ export const getOrders = async (req, res) => {
       return {
         id: order._id,
         orderId: order.orderId,
-        orderDate: order.orderDate.toLocaleDateString(),
-        orderTime: order.orderDate.toLocaleTimeString(),
+        orderDate: order.orderDate.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        }),
+        orderTime: order.orderDate
+          ? convertToIST(order.deliveredAt).split(",")[1].trim()
+          : "",
         orderItems: order.orderItems,
         orderAmount: order.orderValue,
         orderName: order.customerName,
@@ -594,12 +603,12 @@ export const getOrders = async (req, res) => {
       };
     });
 
-    // if (cacheKey) {
-    //   await redisClient.set(cacheKey, JSON.stringify(formattedOrders), {
-    //     EX: 60, // Cache expires in 60 seconds
-    //   });
-    //   console.log(`Cached result under key: ${cacheKey}`);
-    // }
+    if (cacheKey) {
+      await redisClient.set(cacheKey, JSON.stringify(formattedOrders), {
+        EX: 60, // Cache expires in 60 seconds
+      });
+      console.log(`Cached result under key: ${cacheKey}`);
+    }
 
     return res.status(200).json(formattedOrders);
     // return res.status(200).json(formattedOrders);
@@ -617,8 +626,15 @@ export const orderCount = async (req, res) => {
       return res.status(400).json({ message: "Role or user ID missing" });
     }
 
-    // Admin: Count all orders
     if (role === "admin") {
+      const cacheKey = "order:count:admin";
+      const cachedData = await redisClient.get(cacheKey);
+
+      if (cachedData) {
+        console.log("Admin count served from cache");
+        return res.json(JSON.parse(cachedData));
+      }
+
       const totalOrders = await Order.countDocuments();
       const paidOrders = await Order.countDocuments({ paymentStatus: "paid" });
 
@@ -627,10 +643,13 @@ export const orderCount = async (req, res) => {
           ? "0%"
           : ((paidOrders / totalOrders) * 100).toFixed(2) + "%";
 
-      return res.json({ totalOrders, paidOrders, percentagePaid });
+      const data = { totalOrders, paidOrders, percentagePaid };
+
+      await redisClient.set(cacheKey, JSON.stringify(data), "EX", 60); // 1-minute cache
+
+      return res.json(data);
     }
 
-    // Branch Manager: Count only branch orders
     if (role === "branch_manager") {
       const manager = await User.findById(userId).populate("branch");
 
@@ -639,6 +658,13 @@ export const orderCount = async (req, res) => {
       }
 
       const branchName = manager.branch.name;
+      const cacheKey = `order:count:branch:${branchName}`;
+      const cachedData = await redisClient.get(cacheKey);
+
+      if (cachedData) {
+        console.log("Branch count served from cache");
+        return res.json(JSON.parse(cachedData));
+      }
 
       const totalOrders = await Order.countDocuments({ branch: branchName });
       const paidOrders = await Order.countDocuments({
@@ -651,7 +677,11 @@ export const orderCount = async (req, res) => {
           ? "0%"
           : ((paidOrders / totalOrders) * 100).toFixed(2) + "%";
 
-      return res.json({ totalOrders, paidOrders, percentagePaid });
+      const data = { totalOrders, paidOrders, percentagePaid };
+
+      await redisClient.set(cacheKey, JSON.stringify(data), "EX", 60); // 1-minute cache
+
+      return res.json(data);
     }
 
     return res.status(403).json({ message: "Access denied" });

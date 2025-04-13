@@ -25,12 +25,22 @@ client.on("ready", () => {
   console.log("Redis connection established!");
 });
 
+// export const flushRedis = async () => {
+//   try {
+//     await redisClient.flushAll(); // flushDb() only flushes current DB
+//     console.log("✅ Redis cache flushed successfully!");
+//   } catch (error) {
+//     console.error("❌ Failed to flush Redis cache:", error);
+//   }
+// };
+
 await client.connect();
 
 // Optional: Test set/get (can be removed in production)
 try {
   await client.set("foo", "bar");
   const result = await client.get("foo");
+  // await flushRedis();
   console.log("🎯 Redis Test Value:", result); // bar
 } catch (err) {
   console.error("❌ Redis test failed:", err);

@@ -57,7 +57,7 @@ export default function ScanPage() {
           id: userInfo.id,
         },
       });
-
+      console.log(res);
       if (res?.data) {
         // Redirect to order details only if data is found
         router.push(`/order-details?orderId=${orderNumber}`);
