@@ -46,7 +46,7 @@ app.use("/api/branches", branchRoutes);
 
 // Database Connection
 mongoose
-  .connect(process.env.MONGO_URI, {
+  .connect(process.env.MONGO_URI_DEV, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })

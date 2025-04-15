@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import {
   LayoutDashboard,
   Menu,
   Package,
+  User,
+  CircleUser,
 } from "lucide-react";
 import { Button } from "./button";
 import {
@@ -32,12 +34,24 @@ export function TopNavigation() {
   const { userInfo, logout } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const handleLogout = () => {
     logout();
     if (setIsOpen) setIsOpen(false);
     // router.push("/login");
   };
-
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
   return (
     <header className="bg-[#D84315] text-white">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -101,7 +115,7 @@ export function TopNavigation() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
+          {/* <Button
             className="flex items-center gap-1.5 p-0 text-base cursor-pointer"
             onClick={() => {
               // e.preventDefault();
@@ -111,7 +125,41 @@ export function TopNavigation() {
           >
             <LogOut className="h-6 w-6" />
             <span>Logout</span>
-          </Button>
+          </Button> */}
+          <div className="relative" ref={dropdownRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:text-[#0f172a] hover:bg-[#f1f5f9] cursor-pointer transition-colors duration-300 ease-in-out"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+              <User className="h-10 w-10" />
+            </Button>
+
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-md shadow-lg">
+                <button
+                  onClick={() => {
+                    router.push("/profile");
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md cursor-pointer"
+                >
+                  <CircleUser className="h-4 w-4 mr-2" />
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    router.push("/login");
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -188,6 +236,14 @@ export function TopNavigation() {
                   >
                     <LogOut className="h-5 w-5" />
                     <span>Logout</span>
+                  </Link>
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-gray-100"
+                    onClick={() => router.push("/profile")}
+                  >
+                    <User className="h-5 w-5" />
+                    <span>Profile</span>
                   </Link>
                 </div>
               </div>

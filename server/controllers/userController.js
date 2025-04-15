@@ -165,6 +165,25 @@ export const register = async (req, res) => {
   }
 };
 
+export const refreshToken = (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) return res.status(401).json({ message: "No refresh token" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
+
+    const newAccessToken = jwt.sign(
+      { id: decoded.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    res.json({ token: newAccessToken });
+  } catch (err) {
+    res.status(403).json({ message: "Invalid refresh token" });
+  }
+};
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;

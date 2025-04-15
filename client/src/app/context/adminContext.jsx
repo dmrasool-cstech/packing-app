@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { toast } from "sonner";
 const AdminContext = createContext();
 
 export const AdminProvider = ({ children }) => {
@@ -10,6 +10,16 @@ export const AdminProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState(null);
   const router = useRouter();
+
+  const logout = (message = "") => {
+    localStorage.removeItem("usertoken");
+    localStorage.removeItem("userrole");
+    localStorage.removeItem("userData");
+    toast.error(message);
+    setUser(null);
+    setUserInfo(null);
+    router.push("/login");
+  };
 
   // Restore user from localStorage on first load
   useEffect(() => {
@@ -31,14 +41,9 @@ export const AdminProvider = ({ children }) => {
     setUserInfo(data.user);
   };
 
-  const logout = () => {
-    localStorage.removeItem("usertoken");
-    localStorage.removeItem("userrole");
-    localStorage.removeItem("userData");
-    setUser(null);
-    setUserInfo(null);
-    router.push("/login");
-  };
+  // useEffect(() => {
+  //   setLogoutHandler(logout);
+  // }, []);
 
   return (
     <AdminContext.Provider value={{ user, userInfo, login, logout, loading }}>
