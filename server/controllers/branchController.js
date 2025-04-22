@@ -91,6 +91,12 @@ export const createBranch = async (req, res) => {
     });
 
     await branch.save();
+    try {
+      await redisClient.del("branches:all");
+    } catch (cacheError) {
+      console.error("Error clearing Redis cache:", cacheError);
+      // Optionally log to a monitoring service, but don't fail the request
+    }
     res.status(201).json({ message: "Branch created successfully", branch });
   } catch (error) {
     console.error(error);

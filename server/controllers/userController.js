@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import dotenv from "dotenv";
 import Branch from "../models/Branch.js";
 import redisClient from "../utils/radisClient.js";
-import logger from "../utils/logger.js";
+// import logger from "../utils/logger.js";
 
 dotenv.config();
 
@@ -187,10 +187,12 @@ export const refreshToken = (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    // console.log(email, password);
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
-
+    // console.log(user);
     const isMatch = await bcrypt.compare(password, user.password);
+    // console.log(isMatch);
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
@@ -312,7 +314,7 @@ export const getAllUsers = async (req, res) => {
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ message: "Server error" });
-    logger.error(`Uncaught Exception: ${err.message}`);
+    // logger.error(`Uncaught Exception: ${err.message}`);
   }
 };
 

@@ -25,6 +25,15 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminProtectedRoute from "../components/adminProtectedRoute";
 import { useAuth } from "../context/adminContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
 
 const formatDate = (dateString) => {
   const date = new Date(dateString)
@@ -65,6 +74,9 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // State for modal
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +99,19 @@ export default function UsersPage() {
     fetchData();
   }, []);
 
+  // const deleteUser = async (userId) => {
+  //   try {
+  //     await API.delete(`/auth/users/${userId}`);
+  //     toast.success("User deleted successfully");
+  //     setUsers(users.filter((user) => user._id !== userId));
+  //   } catch (error) {
+  //     console.error("Error deleting user:", error);
+  //     toast.error("Error deleting user");
+  //   }
+  // };
+
   const deleteUser = async (userId) => {
+    setIsDeleting(true);
     try {
       await API.delete(`/auth/users/${userId}`);
       toast.success("User deleted successfully");
@@ -95,7 +119,16 @@ export default function UsersPage() {
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Error deleting user");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false); // Close modal after action
+      setUserToDelete(null); // Clear user to delete
     }
+  };
+
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user); // Set the user to delete
+    setIsDeleteModalOpen(true); // Open the modal
   };
 
   const filteredUsers = users.filter((user) => {
@@ -204,14 +237,67 @@ export default function UsersPage() {
                                   <Edit className="h-4 w-4" />
                                 </Link>
                               </Button>
-                              <Button
+                              {/* <Button
                                 className="cursor-pointer"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => deleteUser(user._id)}
                               >
                                 <Trash className="h-4 w-4" />
-                              </Button>
+                              </Button> */}
+                              <Dialog
+                                open={isDeleteModalOpen}
+                                onOpenChange={setIsDeleteModalOpen}
+                              >
+                                <DialogTrigger asChild>
+                                  <Button
+                                    className="cursor-pointer"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteClick(user)}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                {userToDelete && (
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>
+                                        Confirm Deletion
+                                      </DialogTitle>
+                                      <DialogDescription>
+                                        Are you sure you want to delete{" "}
+                                        <span className="font-semibold">
+                                          {userToDelete.name}
+                                        </span>
+                                        ? This action cannot be undone.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                      <Button
+                                        className="cursor-pointer"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setIsDeleteModalOpen(false);
+                                          setUserToDelete(null);
+                                        }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        className="cursor-pointer bg-custom-primary text-white"
+                                        variant="destructive"
+                                        onClick={() =>
+                                          deleteUser(userToDelete._id)
+                                        }
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting ? "Deleting..." : "Delete"}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                )}
+                              </Dialog>
                             </div>
                           </TableCell>
                         )}

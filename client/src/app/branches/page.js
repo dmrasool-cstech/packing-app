@@ -16,6 +16,15 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { Plus, Search, Edit, Trash, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
@@ -93,6 +102,9 @@ export default function BranchesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // State for modal
+  const [branchToDelete, setBranchToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -128,6 +140,7 @@ export default function BranchesPage() {
   }, [searchTerm, branches]);
 
   const deleteBranch = async (id) => {
+    setIsDeleting(true);
     try {
       await API.delete(`/branches/${id}`);
       const updated = branches.filter((branch) => branch._id !== id);
@@ -138,7 +151,16 @@ export default function BranchesPage() {
       console.error("Error deleting branch:", error);
       setError(error.message);
       toast.error("Failed to delete branch.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false); // Close modal after action
+      setBranchToDelete(null); // Clear branch to delete
     }
+  };
+
+  const handleDeleteClick = (branch) => {
+    setBranchToDelete(branch); // Set the branch to delete
+    setIsDeleteModalOpen(true); // Open the modal
   };
 
   if (loading) return <p>Loading...</p>;
@@ -240,14 +262,65 @@ export default function BranchesPage() {
                               <Edit className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button
+                          {/* <Button
                             className="cursor-pointer"
                             variant="ghost"
                             size="icon"
                             onClick={() => deleteBranch(branch._id)}
                           >
                             <Trash className="h-4 w-4" />
-                          </Button>
+                          </Button> */}
+                          <Dialog
+                            open={isDeleteModalOpen}
+                            onOpenChange={setIsDeleteModalOpen}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="cursor-pointer"
+                                onClick={() => handleDeleteClick(branch)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            {branchToDelete && (
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirm Deletion</DialogTitle>
+                                  <DialogDescription>
+                                    Are you sure you want to delete{" "}
+                                    <span className="font-semibold">
+                                      {branchToDelete.name}
+                                    </span>
+                                    ? This action cannot be undone.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <Button
+                                    variant="outline"
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                      setIsDeleteModalOpen(false);
+                                      setBranchToDelete(null);
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    className="cursor-pointer bg-custom-primary text-white"
+                                    onClick={() =>
+                                      deleteBranch(branchToDelete._id)
+                                    }
+                                    disabled={isDeleting}
+                                  >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            )}
+                          </Dialog>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -19,6 +19,21 @@
             "date": 1744692901933,
             "name": "/Users/dmrasool/Desktop/untitled folder/logs/2025-04-15-application.log",
             "hash": "f68beb13579e23a47d4680547947902b25f9c2017bb3302d7fc0145923b3e493"
+        },
+        {
+            "date": 1744883055169,
+            "name": "/Users/dmrasool/Desktop/untitled folder/logs/2025-04-17-application.log",
+            "hash": "8e4d8f13022025593333ed1b2ceb0e676d6655d494ae75d2f345bcc1929d89fb"
+        },
+        {
+            "date": 1745231274651,
+            "name": "/Users/dmrasool/Desktop/untitled folder/logs/2025-04-21-application.log",
+            "hash": "e9e9d1bad681a346cc5ae36a8c432c350297ceb9361157e1e653d41794a45238"
+        },
+        {
+            "date": 1745303642366,
+            "name": "/Users/dmrasool/Desktop/untitled folder/logs/2025-04-22-application.log",
+            "hash": "a037825b98f5980ef44a54b24c376f2cfda3fe64abdaa6488deb2c5356821fb4"
         }
     ],
     "hashType": "sha256"

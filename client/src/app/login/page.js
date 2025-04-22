@@ -49,13 +49,22 @@ export default function LoginPage() {
   };
 
   // 🔐 If already logged in, redirect based on role
-  // useEffect(() => {
-  //   if (userInfo?.role) {
-  //     redirectUser(userInfo.role);
-  //   }
-  // }, [userInfo]);
+  useEffect(() => {
+    if (userInfo?.role) {
+      redirectUser(userInfo.role);
+    }
+  }, [userInfo]);
 
-  if (userInfo?.role) return null; // Prevent login page from showing
+  // Prevent login page from showing if already logged in
+  if (userInfo?.role) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="animate-spin w-6 h-6 text-custom-primary" />
+      </div>
+    );
+  }
+
+  //if (userInfo?.role) return null; // Prevent login page from showing
 
   const onSubmit = async (data) => {
     if (loading) return;

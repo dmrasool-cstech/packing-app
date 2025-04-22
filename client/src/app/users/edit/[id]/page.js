@@ -49,42 +49,74 @@ export default function EditUserPage() {
     username: "",
     status: "active",
   });
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [branchIdValid, setBranchIdValid] = useState(true);
+  const [originalBranchId, setOriginalBranchId] = useState(""); // Store original branchId
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    let isMounted = true;
+
+    const fetchData = async () => {
       try {
-        const response = await API.get(`/auth/users/${userId}`);
-        const user = response.data;
-        console.log(user.branch);
-        // if (!response.ok) throw new Error("Failed to fetch user");
-        setFormData({
-          name: user.name || "",
-          email: user.email || "",
-          mobile: user.mobile || "",
-          branchId: user.branch || "",
-          userType: user.role || "",
-          username: user.username || "",
-          status: user.status || "active",
-        });
+        // Fetch user data
+        const userResponse = await API.get(`/auth/users/${userId}`);
+        const user = userResponse.data;
+        // console.log("Raw user data:", user);
+
+        let branchId = user.branch?._id || user.branchId || user.branch || "";
+        if (!branchId) {
+          console.warn("No valid branchId found in user data");
+        }
+
+        if (isMounted) {
+          setFormData({
+            name: user.name || "",
+            email: user.email || "",
+            mobile: user.mobile || "",
+            branchId,
+            userType: user.role || "",
+            username: user.username || "",
+            status: user.status || "active",
+          });
+          setOriginalBranchId(branchId); // Store original branchId
+          // console.log("Set formData with branchId:", branchId);
+        }
+
+        // Fetch branches
+        const branchResponse = await API.get("/branches/all");
+        if (isMounted) {
+          const fetchedBranches = branchResponse.data;
+          setBranches(fetchedBranches);
+          // console.log("Branches loaded:", fetchedBranches);
+
+          // Validate branchId
+          const isValidBranch =
+            branchId &&
+            fetchedBranches.some((branch) => branch._id === branchId);
+          setBranchIdValid(isValidBranch);
+          if (!isValidBranch && branchId) {
+            console.warn(`BranchId ${branchId} not found in branches`);
+            toast.warning("The assigned branch is invalid or not found");
+            setFormData((prev) => ({ ...prev, branchId: "" }));
+          }
+        }
+
+        if (isMounted) {
+          setIsDataLoaded(true);
+        }
       } catch (error) {
-        console.log(error);
-        console.error("Error fetching user data:", error);
+        console.error("Error fetching data:", error);
+        if (isMounted) {
+          toast.error("Failed to load user or branch data");
+        }
       }
-      //   console.log(formData);
     };
 
-    const fetchBranches = async () => {
-      try {
-        const response = await API.get("/branches/all");
-        // console.log(response);
-        setBranches(response.data);
-      } catch (error) {
-        console.error("Error fetching branches:", error);
-      }
-    };
+    fetchData();
 
-    fetchUserData();
-    fetchBranches();
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   const handleChange = (e) => {
@@ -93,13 +125,25 @@ export default function EditUserPage() {
   };
 
   const handleSelectChange = (name, value) => {
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      if (name === "userType") {
-        updated.branchId = ""; // Reset selected branch when user type changes
-      }
-      return updated;
-    });
+    // console.log(`handleSelectChange called: ${name}=${value}`);
+    if (value || name !== "branchId") {
+      setFormData((prev) => {
+        const updated = { ...prev, [name]: value };
+        if (name === "userType" && value !== prev.userType) {
+          if (value === "branch_manager" && originalBranchId) {
+            // Restore original branchId if switching to branch_manager
+            updated.branchId = originalBranchId;
+            console.log("Restored original branchId:", originalBranchId);
+          } else {
+            updated.branchId = "";
+            console.log("Reset branchId due to userType change:", value);
+          }
+        }
+        return updated;
+      });
+    } else {
+      console.warn("Ignoring empty branchId update");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -120,12 +164,10 @@ export default function EditUserPage() {
     }
 
     try {
-      const response = await API.put(`/auth/users/${userId}`, formData);
-      //   if (!response.ok) throw new Error("Failed to update user");
+      await API.put(`/auth/users/${userId}`, formData);
       router.push("/users");
     } catch (error) {
       const errorRes = error.response?.data;
-
       if (errorRes?.errors) {
         Object.values(errorRes.errors).forEach((msg) => toast.error(msg));
       } else {
@@ -135,6 +177,39 @@ export default function EditUserPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Filter branches, include original branchId for branch_manager
+  const filteredBranches = branches.filter((branch) => {
+    if (formData.userType === "branch_manager") {
+      return (
+        branch.manager === null ||
+        branch._id === formData.branchId ||
+        branch._id === originalBranchId
+      );
+    }
+    if (formData.userType === "packing_agent") {
+      return true;
+    }
+    return false;
+  });
+
+  // Debug branches and formData
+  useEffect(() => {
+    if (isDataLoaded) {
+      // console.log("All branches:", branches);
+      // console.log("Filtered branches:", filteredBranches);
+      // console.log("Current formData:", formData);
+      // console.log("Original branchId:", originalBranchId);
+      console.log("Branch with formData.branchId exists:", branchIdValid);
+    }
+  }, [
+    branches,
+    filteredBranches,
+    formData,
+    isDataLoaded,
+    originalBranchId,
+    branchIdValid,
+  ]);
 
   return (
     <AdminProtectedRoute>
@@ -192,10 +267,11 @@ export default function EditUserPage() {
                   <div className="space-y-2">
                     <Label htmlFor="userType">User Type</Label>
                     <Select
-                      value={formData.userType}
+                      value={formData.userType || ""}
                       onValueChange={(value) =>
                         handleSelectChange("userType", value)
                       }
+                      disabled={!isDataLoaded}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select user type" />
@@ -211,41 +287,43 @@ export default function EditUserPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* <span>{formData.branchId}</span> */}
                   <div className="space-y-2">
                     <Label htmlFor="branchId">Branch</Label>
-
                     <Select
-                      value={formData.branchId}
+                      value={formData.branchId || ""}
                       onValueChange={(value) =>
                         handleSelectChange("branchId", value)
                       }
+                      disabled={!isDataLoaded || !formData.userType}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select branch" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        {branches
-                          .filter((branch) => {
-                            if (formData.userType === "branch_manager") {
-                              return branch.manager === null; // Only unassigned branches
-                            }
-                            if (formData.userType === "packing_agent") {
-                              return true; // All branches
-                            }
-                            return false; // Other roles don't show branches
-                          })
-                          .map((branch) => (
-                            <SelectItem
-                              key={branch._id}
-                              value={branch._id}
-                              className="capitalize"
-                            >
-                              {branch.name} - {branch.code}
-                            </SelectItem>
-                          ))}
+                        {/* {filteredBranches.length === 0 && (
+                          <SelectItem value="" disabled>
+                            No branches available
+                          </SelectItem>
+                        )} */}
+                        {filteredBranches.map((branch) => (
+                          <SelectItem
+                            key={branch._id}
+                            value={branch._id}
+                            className="capitalize"
+                          >
+                            {branch.name} - {branch.code}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {/* <div className="text-sm text-gray-500">
+                      Current branchId: {formData.branchId || "None"}
+                      {!branchIdValid && formData.branchId && (
+                        <span className="text-red-500">
+                          {" (Invalid branch)"}
+                        </span>
+                      )}
+                    </div> */}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -274,7 +352,7 @@ export default function EditUserPage() {
                 <Button
                   type="submit"
                   className="bg-[#D84315] hover:bg-[#BF360C] text-white"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isDataLoaded}
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
